@@ -1,0 +1,26 @@
+{
+  "name": "dadieng",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A shared immune system for AI agents.",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "demo": "pnpm --filter @dadieng/mcp-security-demo demo",
+    "test": "vitest run",
+    "typecheck": "pnpm build && pnpm -r --if-present typecheck"
+  },
+  "devDependencies": {
+    "@dadieng/policy-engine": "workspace:*",
+    "@dadieng/receipt-sanitizer": "workspace:*",
+    "@dadieng/schemas": "workspace:*",
+    "@types/node": "^24.0.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  },
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": ">=22"
+  }
+}
