@@ -97,10 +97,10 @@ describe("portable Dadieng Defense Modules", () => {
     const result = runDefenseSuite(createMcpBoundaryBundle());
 
     expect(result.passed).toBe(true);
-    expect(result.cases).toHaveLength(4);
+    expect(result.cases).toHaveLength(40);
     expect(result.cases.every((testCase) => testCase.passed)).toBe(true);
     expect(result.cases.at(-1)).toMatchObject({
-      caseId: "control-quarterly-report",
+      caseId: "ctl-json-result",
       expectedOutcome: "ALLOW",
       actualOutcome: "ALLOW",
     });

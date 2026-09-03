@@ -17,6 +17,9 @@ importers:
       '@dadieng/receipt-sanitizer':
         specifier: workspace:*
         version: link:packages/receipt-sanitizer
+      '@dadieng/replay-engine':
+        specifier: workspace:*
+        version: link:packages/replay-engine
       '@dadieng/schemas':
         specifier: workspace:*
         version: link:packages/schemas
@@ -72,6 +75,19 @@ importers:
       '@dadieng/schemas':
         specifier: workspace:*
         version: link:../schemas
+
+  packages/replay-engine:
+    dependencies:
+      '@dadieng/defense-module':
+        specifier: workspace:*
+        version: link:../defense-module
+      '@dadieng/schemas':
+        specifier: workspace:*
+        version: link:../schemas
+    devDependencies:
+      tsx:
+        specifier: ^4.20.5
+        version: 4.23.13
 
   packages/schemas:
     dependencies:

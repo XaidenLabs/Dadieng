@@ -7,6 +7,8 @@
   "scripts": {
     "build": "pnpm -r --if-present build",
     "demo": "pnpm --filter @dadieng/mcp-security-demo demo",
+    "replay:demo": "pnpm --filter @dadieng/replay-engine demo",
+    "replay:report": "pnpm --filter @dadieng/replay-engine report:mcp",
     "test": "vitest run",
     "typecheck": "pnpm build && pnpm -r --if-present typecheck"
   },
@@ -14,6 +16,7 @@
     "@dadieng/defense-module": "workspace:*",
     "@dadieng/policy-engine": "workspace:*",
     "@dadieng/receipt-sanitizer": "workspace:*",
+    "@dadieng/replay-engine": "workspace:*",
     "@dadieng/schemas": "workspace:*",
     "@dadieng/sdk": "workspace:*",
     "@types/node": "^24.0.0",

@@ -57,17 +57,32 @@ describe("Dadieng shared schemas", () => {
     const result = replayReportSchema.safeParse({
       schemaVersion: DADIENG_REPLAY_SCHEMA_VERSION,
       runId: "run_001",
-      chainId: 10143,
-      registryAddress: `0x${"1".repeat(40)}`,
       defenseVersionId: "dadieng.mcp-boundary@0.1.0",
-      environment: { imageDigest: HASH, seed: 42, network: "none" },
-      attackResults: { passed: 19, failed: 0, total: 20 },
-      controlResults: { passed: 20, failed: 0, total: 20 },
-      latency: { p50: 1, p95: 2, max: 3 },
-      artifactHash: HASH,
-      suiteHash: HASH,
+      startedAt: "2026-09-03T00:00:00.000Z",
+      completedAt: "2026-09-03T00:00:01.000Z",
+      environment: {
+        imageDigest: HASH,
+        dependencyLockHash: HASH,
+        runtime: "node-22",
+        seed: 42,
+        network: "none",
+        filesystem: "read-only",
+        clock: "deterministic",
+      },
+      artifacts: { manifestHash: HASH, artifactHash: HASH, suiteHash: HASH, sbomHash: HASH },
+      thresholds: { attackPassRate: 0.95, controlPassRate: 0.95, p95LatencyMs: 50 },
+      summary: {
+        attack: { passed: 1, failed: 0, total: 2, passRate: 0.5 },
+        control: { passed: 1, failed: 0, total: 1, passRate: 1 },
+        latencyMs: { p50: 1, p95: 2, max: 3 },
+      },
+      cases: [
+        { caseId: "attack", kind: "attack", expectedOutcome: "BLOCK", actualOutcome: "BLOCK", passed: true, durationMs: 1, reasonCodes: ["MATCH"] },
+        { caseId: "control", kind: "control", expectedOutcome: "ALLOW", actualOutcome: "ALLOW", passed: true, durationMs: 1, reasonCodes: [] },
+      ],
+      generator: { qwenUsed: false, generatedCases: 0, finalDecisionBy: "deterministic-assertions" },
+      releaseEligible: true,
       reportHash: HASH,
-      createdAt: "2026-09-03T00:00:00.000Z",
     });
 
     expect(result.success).toBe(false);

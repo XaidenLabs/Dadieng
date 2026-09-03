@@ -119,10 +119,31 @@ Status: **Complete**
 
 The same incident must receive the same deduplication key across independently encrypted reports. Public material must contain no raw incident, destination, credential, private source identity, or ciphertext. The receipt commitment must verify against the exact encrypted envelope; modification or the wrong key must prevent authenticated decryption.
 
+## Phase 6 — Deterministic replay engine
+
+Status: **Complete**
+
+- [x] Versioned replay environment, case-result, threshold, summary, and report contracts
+- [x] Defense bundle and compatibility verification before execution
+- [x] Canonical 20-attack and 20-control MCP suite
+- [x] Identical deterministic assertion path for attack and legitimate cases
+- [x] Injectable IDs, timestamps, and latency measurements for reproducibility
+- [x] Worker image, dependency-lock, seed, runtime, and isolation-policy commitments
+- [x] Attack effectiveness, control utility, and P50/P95/max latency metrics
+- [x] Candidate release-threshold calculation
+- [x] Fixture bodies excluded from public replay reports
+- [x] Self-verifying report hash and exact Defense Module binding
+- [x] Tampered report, mismatched bundle, permission, compatibility, utility, and latency tests
+- [x] Generated, committed MCP reference replay report
+- [x] Fifty-two total automated tests passing
+
+### Phase 6 gate
+
+The same verified bundle, suite, environment, seed, runtime services, and dependency lock must reproduce the same report. The reference run must pass all 20 attack and 20 control cases, expose no fixture content, meet candidate thresholds, and fail verification after report or bundle substitution.
+
 ## Later phases
 
-- Phase 6: deterministic replay engine — **Next**
-- Phase 7: control-plane API
+- Phase 7: control-plane API — **Next**
 - Phase 8: database and object-storage boundaries
 - Phase 9: Monad contracts
 - Phase 10: Monad transaction adapter

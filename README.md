@@ -19,6 +19,7 @@ This repository currently contains the first reproducible security comparison:
 pnpm install
 pnpm test
 pnpm demo
+pnpm replay:demo
 ```
 
 ## Repository map
@@ -28,8 +29,10 @@ pnpm demo
 - `packages/sdk`: installable lifecycle interception and local enforcement SDK.
 - `packages/policy-engine`: deterministic local defense evaluation.
 - `packages/receipt-sanitizer`: public receipt sanitization, deduplication, and encrypted private evidence.
+- `packages/replay-engine`: deterministic attack/control execution and verifiable replay reports.
 - `examples/mcp-security-demo`: vulnerable and protected executions of the same tool result.
 - `defenses/mcp-boundary`: committed reference bundle with artifact, manifest, suite, and SBOM.
+- `replays/mcp-boundary`: committed deterministic report for the reference defense.
 
 The demo is intentionally simulated: it proves that the vulnerable planner accepts an unsafe request, but it never reads or transmits a real secret.
 

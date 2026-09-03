@@ -7,7 +7,7 @@ export const DADIENG_TAXONOMY_SCHEMA_VERSION = "dadieng.attack-taxonomy.v1" as c
 export const DADIENG_PRIVATE_EVIDENCE_SCHEMA_VERSION = "dadieng.private-evidence.v1" as const;
 export const DADIENG_ENCRYPTED_EVIDENCE_SCHEMA_VERSION = "dadieng.encrypted-evidence.v1" as const;
 export const DADIENG_DEFENSE_SCHEMA_VERSION = "dadieng.defense.v1" as const;
-export const DADIENG_REPLAY_SCHEMA_VERSION = "dadieng.replay-report.v1" as const;
+export const DADIENG_REPLAY_SCHEMA_VERSION = "dadieng.replay-report.v2" as const;
 export const DADIENG_ATTESTATION_SCHEMA_VERSION = "dadieng.attestation.v1" as const;
 export const DADIENG_MANIFEST_SCHEMA_VERSION = "dadieng.stable-manifest.v1" as const;
 export const DADIENG_RUN_SCHEMA_VERSION = "dadieng.agent-run.v1" as const;
@@ -16,6 +16,8 @@ export const DADIENG_SBOM_SCHEMA_VERSION = "dadieng.sbom.v1" as const;
 export const DADIENG_SUITE_SCHEMA_VERSION = "dadieng.replay-suite.v1" as const;
 
 export const hashSchema = z.string().regex(/^sha256:[a-f0-9]{64}$/, "Expected a sha256 content hash");
+export const reasonCodeSchema = z.string().regex(/^[A-Z][A-Z0-9_]{0,127}$/, "Expected a controlled reason code");
+export const publicIdentifierSchema = z.string().regex(/^[A-Za-z0-9._:-]{1,128}$/, "Expected a public-safe identifier");
 export const timestampSchema = z.string().datetime({ offset: true });
 export const trustZoneSchema = z.enum(["trusted", "tenant", "external", "untrusted"]);
 export const eventStageSchema = z.enum(["before_model", "after_model", "before_tool", "after_tool"]);
@@ -87,7 +89,7 @@ export const policyDecisionSchema = z.object({
   decisionId: z.string().min(1),
   eventId: z.string().min(1),
   outcome: decisionOutcomeSchema,
-  reasonCodes: z.array(z.string().min(1)).min(1),
+  reasonCodes: z.array(reasonCodeSchema).min(1),
   matchedDefenseIds: z.array(z.string().min(1)),
   evaluatedAt: timestampSchema,
 });
@@ -195,13 +197,13 @@ export const defenseArtifactSchema = z.object({
   schemaVersion: z.literal(DADIENG_DEFENSE_ARTIFACT_SCHEMA_VERSION),
   defenseId: z.string().min(1),
   rules: z.array(z.object({
-    ruleId: z.string().min(1),
+    ruleId: publicIdentifierSchema,
     description: z.string().min(1),
     stages: z.array(eventStageSchema).min(1),
     trustZones: z.array(trustZoneSchema).min(1),
     indicatorGroups: z.array(z.array(z.string().min(1).max(160)).min(1)).min(1),
     outcome: decisionOutcomeSchema,
-    reasonCodes: z.array(z.string().min(1)).min(1),
+    reasonCodes: z.array(reasonCodeSchema).min(1),
   })).min(1),
 });
 
@@ -220,7 +222,7 @@ export const defenseTestSuiteSchema = z.object({
   schemaVersion: z.literal(DADIENG_SUITE_SCHEMA_VERSION),
   defenseId: z.string().min(1),
   cases: z.array(z.object({
-    caseId: z.string().min(1),
+    caseId: publicIdentifierSchema,
     kind: z.enum(["attack", "control"]),
     stage: eventStageSchema,
     trustZone: trustZoneSchema,
@@ -240,35 +242,105 @@ export const defenseTestSuiteSchema = z.object({
 const replayResultSummarySchema = z.object({
   passed: z.number().int().nonnegative(),
   failed: z.number().int().nonnegative(),
-  total: z.number().int().nonnegative(),
+  total: z.number().int().positive(),
+  passRate: z.number().min(0).max(1),
 }).superRefine((result, context) => {
   if (result.passed + result.failed !== result.total) {
     context.addIssue({ code: "custom", message: "passed + failed must equal total" });
   }
+  if (Math.abs(result.passRate - result.passed / result.total) > Number.EPSILON) {
+    context.addIssue({ code: "custom", message: "passRate must equal passed / total" });
+  }
+});
+
+export const replayEnvironmentSchema = z.object({
+  imageDigest: hashSchema,
+  dependencyLockHash: hashSchema,
+  runtime: z.string().min(1),
+  seed: z.number().int().nonnegative(),
+  network: z.literal("none"),
+  filesystem: z.literal("read-only"),
+  clock: z.literal("deterministic"),
 });
 
 export const replayReportSchema = z.object({
   schemaVersion: z.literal(DADIENG_REPLAY_SCHEMA_VERSION),
   runId: z.string().min(1),
-  chainId: z.number().int().positive(),
-  registryAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   defenseVersionId: z.string().min(1),
-  environment: z.object({
-    imageDigest: hashSchema,
-    seed: z.number().int().nonnegative(),
-    network: z.literal("none"),
+  startedAt: timestampSchema,
+  completedAt: timestampSchema,
+  environment: replayEnvironmentSchema,
+  artifacts: z.object({
+    manifestHash: hashSchema,
+    artifactHash: hashSchema,
+    suiteHash: hashSchema,
+    sbomHash: hashSchema,
   }),
-  attackResults: replayResultSummarySchema,
-  controlResults: replayResultSummarySchema,
-  latency: z.object({
-    p50: z.number().nonnegative(),
-    p95: z.number().nonnegative(),
-    max: z.number().nonnegative(),
+  thresholds: z.object({
+    attackPassRate: z.number().min(0).max(1),
+    controlPassRate: z.number().min(0).max(1),
+    p95LatencyMs: z.number().nonnegative(),
   }),
-  artifactHash: hashSchema,
-  suiteHash: hashSchema,
+  summary: z.object({
+    attack: replayResultSummarySchema,
+    control: replayResultSummarySchema,
+    latencyMs: z.object({
+      p50: z.number().nonnegative(),
+      p95: z.number().nonnegative(),
+      max: z.number().nonnegative(),
+    }),
+  }),
+  cases: z.array(z.object({
+    caseId: publicIdentifierSchema,
+    kind: z.enum(["attack", "control"]),
+    expectedOutcome: decisionOutcomeSchema,
+    actualOutcome: decisionOutcomeSchema,
+    passed: z.boolean(),
+    durationMs: z.number().finite().nonnegative(),
+    reasonCodes: z.array(reasonCodeSchema),
+  })).min(2),
+  generator: z.object({
+    qwenUsed: z.boolean(),
+    generatedCases: z.number().int().nonnegative(),
+    finalDecisionBy: z.literal("deterministic-assertions"),
+  }),
+  releaseEligible: z.boolean(),
   reportHash: hashSchema,
-  createdAt: timestampSchema,
+}).superRefine((report, context) => {
+  const attackCases = report.cases.filter((testCase) => testCase.kind === "attack");
+  const controlCases = report.cases.filter((testCase) => testCase.kind === "control");
+  const summaries = [[attackCases, report.summary.attack], [controlCases, report.summary.control]] as const;
+
+  for (const [cases, summary] of summaries) {
+    const passed = cases.filter((testCase) => testCase.passed).length;
+    if (summary.total !== cases.length || summary.passed !== passed || summary.failed !== cases.length - passed) {
+      context.addIssue({ code: "custom", message: "Replay summary must match case results" });
+    }
+  }
+  for (const testCase of report.cases) {
+    if (testCase.passed !== (testCase.expectedOutcome === testCase.actualOutcome)) {
+      context.addIssue({ code: "custom", message: `Replay case ${testCase.caseId} has an inconsistent assertion` });
+    }
+  }
+  if (new Set(report.cases.map((testCase) => testCase.caseId)).size !== report.cases.length) {
+    context.addIssue({ code: "custom", message: "Replay report case IDs must be unique" });
+  }
+  if (!report.generator.qwenUsed && report.generator.generatedCases !== 0) {
+    context.addIssue({ code: "custom", message: "generatedCases must be zero when Qwen was not used" });
+  }
+  if (Date.parse(report.completedAt) < Date.parse(report.startedAt)) {
+    context.addIssue({ code: "custom", message: "Replay completion cannot precede its start" });
+  }
+  if (report.summary.latencyMs.p50 > report.summary.latencyMs.p95
+    || report.summary.latencyMs.p95 > report.summary.latencyMs.max) {
+    context.addIssue({ code: "custom", message: "Replay latency percentiles must be ordered" });
+  }
+  const eligible = report.summary.attack.passRate >= report.thresholds.attackPassRate
+    && report.summary.control.passRate >= report.thresholds.controlPassRate
+    && report.summary.latencyMs.p95 <= report.thresholds.p95LatencyMs;
+  if (report.releaseEligible !== eligible) {
+    context.addIssue({ code: "custom", message: "releaseEligible must match replay thresholds" });
+  }
 });
 
 export const validatorAttestationSchema = z.object({
