@@ -96,10 +96,32 @@ Status: **Complete**
 
 A bundle must reproduce deterministically, pass schema and content-hash verification, execute its committed attack and control suite successfully, and load into the SDK without granting network, filesystem, or clock access.
 
+## Phase 5 — Complete Threat Receipt pipeline
+
+Status: **Complete**
+
+- [x] Versioned public receipt, attack taxonomy, private evidence, and encrypted envelope schemas
+- [x] Controlled attack, framework, adapter, and capability classifications
+- [x] Privacy-safe summaries that never copy incident content
+- [x] Reporter fingerprinting with explicit opt-in attribution
+- [x] Exact event and decision capture in the private evidence bundle
+- [x] Authenticated AES-256-GCM evidence encryption
+- [x] Public SHA-256 commitment to the complete encrypted envelope
+- [x] Evidence commitment verification and authenticated decryption
+- [x] Stable incident deduplication independent of receipt IDs and encryption randomness
+- [x] Mandatory manual-review marker for high and critical disclosures
+- [x] SDK incident callbacks include the receipt and opaque encrypted evidence
+- [x] Receipt/encryption failures remain isolated from local block decisions
+- [x] Deterministic MCP demonstration migrated to `dadieng.receipt.v2`
+- [x] Forty-one total automated tests passing
+
+### Phase 5 gate
+
+The same incident must receive the same deduplication key across independently encrypted reports. Public material must contain no raw incident, destination, credential, private source identity, or ciphertext. The receipt commitment must verify against the exact encrypted envelope; modification or the wrong key must prevent authenticated decryption.
+
 ## Later phases
 
-- Phase 5: complete Threat Receipt pipeline — **Next**
-- Phase 6: deterministic replay engine
+- Phase 6: deterministic replay engine — **Next**
 - Phase 7: control-plane API
 - Phase 8: database and object-storage boundaries
 - Phase 9: Monad contracts

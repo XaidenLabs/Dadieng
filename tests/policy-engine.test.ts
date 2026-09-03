@@ -57,10 +57,11 @@ describe("Dadieng MCP boundary defense", () => {
     const receipt = createThreatReceipt(event, decision);
     const serialized = JSON.stringify(receipt);
 
-    expect(receipt.publicEvidenceHash).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(receipt.evidence.hash).toMatch(/^sha256:[a-f0-9]{64}$/);
     expect(serialized).not.toContain(secret);
     expect(serialized).not.toContain(event.content);
     expect(receipt.privacy.containsRawPrompt).toBe(false);
     expect(receipt.privacy.containsCredentials).toBe(false);
+    expect(receipt.privacy.containsPersonalData).toBe(false);
   });
 });

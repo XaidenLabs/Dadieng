@@ -27,7 +27,7 @@ pnpm demo
 - `packages/defense-module`: portable bundle creation, verification, loading, and suite execution.
 - `packages/sdk`: installable lifecycle interception and local enforcement SDK.
 - `packages/policy-engine`: deterministic local defense evaluation.
-- `packages/receipt-sanitizer`: privacy-safe incident receipt creation.
+- `packages/receipt-sanitizer`: public receipt sanitization, deduplication, and encrypted private evidence.
 - `examples/mcp-security-demo`: vulnerable and protected executions of the same tool result.
 - `defenses/mcp-boundary`: committed reference bundle with artifact, manifest, suite, and SBOM.
 

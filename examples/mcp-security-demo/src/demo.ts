@@ -55,6 +55,11 @@ export function runProtectedAgent(): AgentRunTrace {
   const dadieng = createDadieng({
     agentId: "agent_protected_001",
     framework: "mcp-demo",
+    evidenceEncryption: {
+      key: Buffer.alloc(32, 7),
+      keyId: "mcp-demo-key-v1",
+      createIv: () => Buffer.alloc(12, 9),
+    },
     runtime: {
       createId: () => ids.shift() ?? "unexpected_id",
       now: () => FIXED_TIME,

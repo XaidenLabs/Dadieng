@@ -1,8 +1,11 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { loadDefenseBundle } from "@dadieng/defense-module";
 import { createMcpBoundaryBundle } from "@dadieng/defense-module/mcp-boundary";
 import { LocalPolicyEngine, type PolicyEngineRuntime } from "@dadieng/policy-engine";
-import { createThreatReceipt } from "@dadieng/receipt-sanitizer";
+import {
+  createThreatReceiptPipeline,
+  type EvidenceEncryptionOptions,
+} from "@dadieng/receipt-sanitizer";
 import {
   DADIENG_DECISION_SCHEMA_VERSION,
   DADIENG_EVENT_SCHEMA_VERSION,
@@ -11,6 +14,7 @@ import {
   type DadiengEvent,
   type DefenseRule,
   type EnforcementMode,
+  type EncryptedThreatEvidence,
   type EventStage,
   type Impact,
   type PolicyDecision,
@@ -31,6 +35,9 @@ export interface DadiengConfig {
   failMode?: DadiengFailMode;
   defenses?: DefenseRule[];
   runtime?: DadiengSdkRuntime;
+  evidenceEncryption?: EvidenceEncryptionOptions;
+  publishReporterAgentId?: boolean;
+  erc8004Id?: string;
 }
 
 export interface SourceInput {
@@ -74,15 +81,20 @@ export interface ProtectionResult {
   event: DadiengEvent;
   decision: PolicyDecision;
   receipt: ThreatReceipt | null;
+  encryptedEvidence: EncryptedThreatEvidence | null;
 }
 
 export interface SdkDiagnostic {
-  type: "decision_listener_error" | "incident_listener_error" | "policy_evaluation_error";
+  type: "decision_listener_error" | "incident_listener_error" | "policy_evaluation_error" | "receipt_pipeline_error";
   message: string;
 }
 
 export type DecisionListener = (decision: PolicyDecision, event: DadiengEvent) => void;
-export type IncidentListener = (receipt: ThreatReceipt, decision: PolicyDecision) => void;
+export type IncidentListener = (
+  receipt: ThreatReceipt,
+  decision: PolicyDecision,
+  encryptedEvidence: EncryptedThreatEvidence,
+) => void;
 
 const defaultRuntime: DadiengSdkRuntime = {
   createId: randomUUID,
@@ -121,8 +133,11 @@ function errorMessage(error: unknown): string {
 }
 
 export class DadiengClient {
-  private readonly config: Required<Omit<DadiengConfig, "defenses" | "runtime">>;
+  private readonly config: Required<Omit<DadiengConfig, "defenses" | "runtime" | "evidenceEncryption" | "erc8004Id">> & {
+    erc8004Id?: string;
+  };
   private readonly runtime: DadiengSdkRuntime;
+  private readonly evidenceEncryption: EvidenceEncryptionOptions;
   private readonly engine: LocalPolicyEngine;
   private readonly decisionListeners = new Set<DecisionListener>();
   private readonly incidentListeners = new Set<IncidentListener>();
@@ -139,8 +154,14 @@ export class DadiengClient {
       channel: config.channel ?? "stable",
       mode: config.mode ?? "enforce",
       failMode: config.failMode ?? "last-known-good",
+      publishReporterAgentId: config.publishReporterAgentId ?? false,
+      ...(config.erc8004Id ? { erc8004Id: config.erc8004Id } : {}),
     };
     this.runtime = config.runtime ?? defaultRuntime;
+    this.evidenceEncryption = config.evidenceEncryption ?? {
+      key: randomBytes(32),
+      keyId: "local-ephemeral-v1",
+    };
     this.engine = new LocalPolicyEngine(
       config.defenses ?? [loadDefenseBundle(createMcpBoundaryBundle())],
       this.runtime,
@@ -234,12 +255,24 @@ export class DadiengClient {
 
     this.emitDecision(decision, event);
 
-    const receipt = decision.outcome === "BLOCK" || decision.outcome === "OBSERVE"
-      ? createThreatReceipt(event, decision, () => this.runtime.createId())
-      : null;
+    let incident: ReturnType<typeof createThreatReceiptPipeline> | null = null;
+    if (decision.outcome === "BLOCK" || decision.outcome === "OBSERVE") {
+      try {
+        incident = createThreatReceiptPipeline(event, decision, {
+          createId: () => this.runtime.createId(),
+          encryption: this.evidenceEncryption,
+          publishReporterAgentId: this.config.publishReporterAgentId,
+          ...(this.config.erc8004Id ? { erc8004Id: this.config.erc8004Id } : {}),
+        });
+      } catch (error) {
+        this.diagnostics.push({ type: "receipt_pipeline_error", message: errorMessage(error) });
+      }
+    }
+    const receipt = incident?.receipt ?? null;
+    const encryptedEvidence = incident?.encryptedEvidence ?? null;
 
-    if (receipt) this.emitIncident(receipt, decision);
-    return { event, decision, receipt };
+    if (receipt && encryptedEvidence) this.emitIncident(receipt, decision, encryptedEvidence);
+    return { event, decision, receipt, encryptedEvidence };
   }
 
   private failureDecision(event: DadiengEvent): PolicyDecision {
@@ -272,10 +305,14 @@ export class DadiengClient {
     }
   }
 
-  private emitIncident(receipt: ThreatReceipt, decision: PolicyDecision): void {
+  private emitIncident(
+    receipt: ThreatReceipt,
+    decision: PolicyDecision,
+    encryptedEvidence: EncryptedThreatEvidence,
+  ): void {
     for (const listener of this.incidentListeners) {
       try {
-        listener(receipt, decision);
+        listener(receipt, decision, encryptedEvidence);
       } catch (error) {
         this.diagnostics.push({ type: "incident_listener_error", message: errorMessage(error) });
       }

@@ -13,15 +13,20 @@ const dadieng = createDadieng({
   channel: "stable",
   mode: "enforce",
   failMode: "last-known-good",
+  evidenceEncryption: {
+    key: await loadEvidenceKey(), // exactly 32 bytes from your secret manager
+    keyId: "tenant-evidence-key-v1",
+  },
 });
 
 dadieng.onDecision((decision) => {
   console.log(decision.outcome, decision.reasonCodes);
 });
 
-dadieng.onIncident((receipt) => {
-  // The receipt is sanitized. Store private evidence separately.
-  console.log(receipt.publicEvidenceHash);
+dadieng.onIncident((receipt, _decision, encryptedEvidence) => {
+  // Publish only the receipt. Store the opaque envelope in private storage.
+  console.log(receipt.evidence.hash);
+  void storePrivateEvidence(receipt.evidence.encryptedUri, encryptedEvidence);
 });
 
 const result = dadieng.afterToolResult({
@@ -50,9 +55,11 @@ if (result.decision.outcome === "BLOCK") {
 - `beforeToolCall()` — inspect a proposed tool call and arguments.
 - `afterToolResult()` — inspect data returned by a tool or MCP server.
 - `onDecision()` — subscribe to every local decision.
-- `onIncident()` — subscribe to sanitized incident receipts.
+- `onIncident()` — receive a sanitized receipt and its encrypted private evidence envelope.
 
 Decision and incident listener failures are isolated from enforcement. Diagnostics remain available through `getDiagnostics()`.
+
+If `evidenceEncryption` is omitted, the SDK creates an in-memory ephemeral key. Production adopters should supply a managed 32-byte key so encrypted evidence remains recoverable. Reporter agent IDs are hashed by default; set `publishReporterAgentId: true` only when public attribution is intentional.
 
 ## Failure behavior
 

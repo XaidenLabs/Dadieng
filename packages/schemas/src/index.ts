@@ -2,7 +2,10 @@ import { z } from "zod";
 
 export const DADIENG_EVENT_SCHEMA_VERSION = "dadieng.event.v1" as const;
 export const DADIENG_DECISION_SCHEMA_VERSION = "dadieng.decision.v1" as const;
-export const DADIENG_RECEIPT_SCHEMA_VERSION = "dadieng.receipt.v1" as const;
+export const DADIENG_RECEIPT_SCHEMA_VERSION = "dadieng.receipt.v2" as const;
+export const DADIENG_TAXONOMY_SCHEMA_VERSION = "dadieng.attack-taxonomy.v1" as const;
+export const DADIENG_PRIVATE_EVIDENCE_SCHEMA_VERSION = "dadieng.private-evidence.v1" as const;
+export const DADIENG_ENCRYPTED_EVIDENCE_SCHEMA_VERSION = "dadieng.encrypted-evidence.v1" as const;
 export const DADIENG_DEFENSE_SCHEMA_VERSION = "dadieng.defense.v1" as const;
 export const DADIENG_REPLAY_SCHEMA_VERSION = "dadieng.replay-report.v1" as const;
 export const DADIENG_ATTESTATION_SCHEMA_VERSION = "dadieng.attestation.v1" as const;
@@ -33,6 +36,21 @@ export const attackClassSchema = z.enum([
   "data_exfiltration",
   "malicious_module",
 ]);
+export const capabilityClassSchema = z.enum([
+  "secrets.read",
+  "network.send",
+  "filesystem.read",
+  "filesystem.write",
+  "process.execute",
+  "payment.transfer",
+  "communications.send",
+  "data.read",
+  "data.write",
+  "content.inspect",
+  "unknown",
+]);
+export const agentFrameworkSchema = z.enum(["vercel-ai", "langchain", "mcp", "custom", "unknown"]);
+export const adapterSchema = z.enum(["mcp", "vercel-ai", "langchain", "custom", "unknown"]);
 
 export const dadiengEventSchema = z.object({
   schemaVersion: z.literal(DADIENG_EVENT_SCHEMA_VERSION),
@@ -78,21 +96,75 @@ export const threatReceiptSchema = z.object({
   schemaVersion: z.literal(DADIENG_RECEIPT_SCHEMA_VERSION),
   receiptId: z.string().min(1),
   observedAt: timestampSchema,
-  reporterAgentId: z.string().min(1),
+  reporter: z.object({
+    agentId: z.string().regex(/^[A-Za-z0-9._:-]{1,128}$/).optional(),
+    agentFingerprint: hashSchema,
+    erc8004Id: z.string().regex(/^\d+$/).optional(),
+    sdkVersion: z.string().min(1).max(40),
+  }),
   classification: z.object({
+    taxonomyVersion: z.literal(DADIENG_TAXONOMY_SCHEMA_VERSION),
     attackClass: attackClassSchema,
     severity: impactSchema,
     confidence: z.number().min(0).max(1),
   }),
-  affectedCapability: z.string().min(1),
-  sanitizedSummary: z.string().min(1).max(500),
-  sourceFingerprint: hashSchema,
-  publicEvidenceHash: hashSchema,
+  surface: z.object({
+    framework: agentFrameworkSchema,
+    adapter: adapterSchema,
+    capabilities: z.array(capabilityClassSchema).min(1),
+  }),
+  source: z.object({
+    trustZone: trustZoneSchema,
+    fingerprint: hashSchema,
+  }),
+  sanitized: z.object({
+    summary: z.string().min(1).max(500),
+    replayFixtureUri: z.string().regex(/^(local|ipfs):\/\/[A-Za-z0-9._~:/-]+$/).optional(),
+  }),
+  evidence: z.object({
+    hash: hashSchema,
+    encryptedUri: z.string().regex(/^(local|s3|ipfs):\/\/[A-Za-z0-9._~:/-]+$/),
+    encryption: z.literal("aes-256-gcm-v1"),
+    keyId: z.string().regex(/^[A-Za-z0-9._:-]{1,128}$/),
+  }),
+  deduplicationKey: hashSchema,
   privacy: z.object({
     containsRawPrompt: z.literal(false),
     containsCredentials: z.literal(false),
-    redactionPolicy: z.literal("dadieng.public-receipt.v1"),
+    containsPersonalData: z.literal(false),
+    redactionPolicy: z.literal("dadieng.strict-redaction.v1"),
+    sanitizationConfidence: z.number().min(0).max(1),
+    manualReviewRequired: z.boolean(),
   }),
+}).superRefine((receipt, context) => {
+  if ((receipt.classification.severity === "high" || receipt.classification.severity === "critical")
+    && !receipt.privacy.manualReviewRequired) {
+    context.addIssue({
+      code: "custom",
+      path: ["privacy", "manualReviewRequired"],
+      message: "High and critical receipts require manual review before public disclosure",
+    });
+  }
+});
+
+export const privateThreatEvidenceSchema = z.object({
+  schemaVersion: z.literal(DADIENG_PRIVATE_EVIDENCE_SCHEMA_VERSION),
+  receiptId: z.string().min(1),
+  capturedAt: timestampSchema,
+  event: dadiengEventSchema,
+  decision: policyDecisionSchema,
+});
+
+const base64Schema = z.string().regex(/^[A-Za-z0-9+/]+={0,2}$/);
+
+export const encryptedThreatEvidenceSchema = z.object({
+  schemaVersion: z.literal(DADIENG_ENCRYPTED_EVIDENCE_SCHEMA_VERSION),
+  receiptId: z.string().min(1),
+  algorithm: z.literal("aes-256-gcm-v1"),
+  keyId: z.string().regex(/^[A-Za-z0-9._:-]{1,128}$/),
+  iv: base64Schema,
+  ciphertext: base64Schema,
+  authTag: base64Schema,
 });
 
 export const defenseManifestSchema = z.object({
@@ -277,9 +349,14 @@ export type Impact = z.infer<typeof impactSchema>;
 export type EnforcementMode = z.infer<typeof enforcementModeSchema>;
 export type DecisionOutcome = z.infer<typeof decisionOutcomeSchema>;
 export type AttackClass = z.infer<typeof attackClassSchema>;
+export type CapabilityClass = z.infer<typeof capabilityClassSchema>;
+export type AgentFramework = z.infer<typeof agentFrameworkSchema>;
+export type Adapter = z.infer<typeof adapterSchema>;
 export type DadiengEvent = z.infer<typeof dadiengEventSchema>;
 export type PolicyDecision = z.infer<typeof policyDecisionSchema>;
 export type ThreatReceipt = z.infer<typeof threatReceiptSchema>;
+export type PrivateThreatEvidence = z.infer<typeof privateThreatEvidenceSchema>;
+export type EncryptedThreatEvidence = z.infer<typeof encryptedThreatEvidenceSchema>;
 export type DefenseManifest = z.infer<typeof defenseManifestSchema>;
 export type DefenseArtifact = z.infer<typeof defenseArtifactSchema>;
 export type DefenseSbom = z.infer<typeof defenseSbomSchema>;
