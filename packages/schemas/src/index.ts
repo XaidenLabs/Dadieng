@@ -7,6 +7,7 @@ export const DADIENG_DEFENSE_SCHEMA_VERSION = "dadieng.defense.v1" as const;
 export const DADIENG_REPLAY_SCHEMA_VERSION = "dadieng.replay-report.v1" as const;
 export const DADIENG_ATTESTATION_SCHEMA_VERSION = "dadieng.attestation.v1" as const;
 export const DADIENG_MANIFEST_SCHEMA_VERSION = "dadieng.stable-manifest.v1" as const;
+export const DADIENG_RUN_SCHEMA_VERSION = "dadieng.agent-run.v1" as const;
 
 export const hashSchema = z.string().regex(/^sha256:[a-f0-9]{64}$/, "Expected a sha256 content hash");
 export const timestampSchema = z.string().datetime({ offset: true });
@@ -181,6 +182,46 @@ export const stableManifestSchema = z.object({
   signature: z.string().min(1),
 });
 
+export const capabilityRequestSchema = z.object({
+  requestId: z.string().min(1),
+  capability: z.string().min(1),
+  impact: impactSchema,
+  targetClass: z.string().min(1),
+  disposition: z.enum(["proposed", "blocked"]),
+  simulated: z.literal(true),
+  executed: z.literal(false),
+});
+
+export const agentTraceStepSchema = z.object({
+  sequence: z.number().int().positive(),
+  type: z.enum([
+    "TOOL_RESULT_RECEIVED",
+    "CONTENT_CLASSIFIED",
+    "CAPABILITY_REQUESTED",
+    "POLICY_EVALUATED",
+    "ACTION_BLOCKED",
+    "UNSAFE_ACTION_PROPOSED",
+    "THREAT_RECEIPT_CREATED",
+  ]),
+  outcome: z.enum(["observed", "safe", "unsafe", "blocked"]),
+  summary: z.string().min(1).max(240),
+});
+
+export const agentRunTraceSchema = z.object({
+  schemaVersion: z.literal(DADIENG_RUN_SCHEMA_VERSION),
+  runId: z.string().min(1),
+  mode: z.enum(["vulnerable", "protected"]),
+  fixtureId: z.string().min(1),
+  fixtureHash: hashSchema,
+  startedAt: timestampSchema,
+  completedAt: timestampSchema,
+  status: z.enum(["unsafe_action_proposed", "attack_blocked"]),
+  steps: z.array(agentTraceStepSchema).min(1),
+  capabilityRequests: z.array(capabilityRequestSchema),
+  decision: policyDecisionSchema.nullable(),
+  receipt: threatReceiptSchema.nullable(),
+});
+
 export type TrustZone = z.infer<typeof trustZoneSchema>;
 export type EventStage = z.infer<typeof eventStageSchema>;
 export type Impact = z.infer<typeof impactSchema>;
@@ -194,6 +235,9 @@ export type DefenseManifest = z.infer<typeof defenseManifestSchema>;
 export type ReplayReport = z.infer<typeof replayReportSchema>;
 export type ValidatorAttestation = z.infer<typeof validatorAttestationSchema>;
 export type StableManifest = z.infer<typeof stableManifestSchema>;
+export type CapabilityRequest = z.infer<typeof capabilityRequestSchema>;
+export type AgentTraceStep = z.infer<typeof agentTraceStepSchema>;
+export type AgentRunTrace = z.infer<typeof agentRunTraceSchema>;
 
 export interface DefenseRule {
   defenseId: string;

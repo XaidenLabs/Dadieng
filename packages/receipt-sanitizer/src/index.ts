@@ -29,6 +29,7 @@ function classify(decision: PolicyDecision): AttackClass {
 export function createThreatReceipt(
   event: DadiengEvent,
   decision: PolicyDecision,
+  createId: () => string = randomUUID,
 ): ThreatReceipt {
   if (decision.outcome !== "BLOCK" && decision.outcome !== "OBSERVE") {
     throw new Error(`Cannot create a threat receipt for ${decision.outcome}`);
@@ -46,7 +47,7 @@ export function createThreatReceipt(
 
   return threatReceiptSchema.parse({
     schemaVersion: DADIENG_RECEIPT_SCHEMA_VERSION,
-    receiptId: randomUUID(),
+    receiptId: createId(),
     observedAt: event.timestamp,
     reporterAgentId: event.agent.agentId,
     classification: {

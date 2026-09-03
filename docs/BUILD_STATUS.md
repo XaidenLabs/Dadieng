@@ -30,13 +30,33 @@ All commands pass as of 3 September 2026.
 
 ## Phase 2 — Vulnerable-agent demonstration
 
-Status: **Next**
+Status: **Complete**
 
-The basic proof exists. Phase 2 will turn it into two explicit agent executions with structured traces, capability requests, a malicious MCP fixture, and deterministic expected outcomes.
+Two explicit agents now consume the same content-addressed malicious MCP fixture.
+
+- [x] Shared malicious MCP tool-result fixture
+- [x] Stable fixture ID and SHA-256 fingerprint
+- [x] Vulnerable agent execution trace
+- [x] Protected agent execution trace
+- [x] Structured secret-read and network-send capability requests
+- [x] Unsafe requests remain simulated and are never executed
+- [x] Deterministic policy decision, receipt, and comparison output
+- [x] Public receipt and trace exclude hostile content and destinations
+- [x] Twelve total automated tests passing
+
+### Phase 2 gate
+
+```text
+pnpm test
+pnpm typecheck
+pnpm demo
+```
+
+The demo must show `unsafe_action_proposed` for the vulnerable path and `attack_blocked` for the protected path while both paths retain the same fixture hash.
 
 ## Later phases
 
-- Phase 3: Dadieng SDK
+- Phase 3: Dadieng SDK — **Next**
 - Phase 4: portable Defense Module standard
 - Phase 5: complete Threat Receipt pipeline
 - Phase 6: deterministic replay engine
@@ -52,4 +72,3 @@ The basic proof exists. Phase 2 will turn it into two explicit agent executions 
 - Phase 16: sponsor integrations
 - Phase 17: external integrations
 - Phase 18: final demonstration
-

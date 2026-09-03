@@ -62,8 +62,21 @@ export const mcpBoundaryDefense: DefenseRule = {
   },
 };
 
+export interface PolicyEngineRuntime {
+  createId(): string;
+  now(): string;
+}
+
+const defaultRuntime: PolicyEngineRuntime = {
+  createId: randomUUID,
+  now: () => new Date().toISOString(),
+};
+
 export class LocalPolicyEngine {
-  constructor(private readonly defenses: DefenseRule[]) {}
+  constructor(
+    private readonly defenses: DefenseRule[],
+    private readonly runtime: PolicyEngineRuntime = defaultRuntime,
+  ) {}
 
   evaluate(event: DadiengEvent): PolicyDecision {
     dadiengEventSchema.parse(event);
@@ -74,21 +87,21 @@ export class LocalPolicyEngine {
         return policyDecisionSchema.parse({
           ...result,
           schemaVersion: DADIENG_DECISION_SCHEMA_VERSION,
-          decisionId: randomUUID(),
+          decisionId: this.runtime.createId(),
           eventId: event.eventId,
-          evaluatedAt: new Date().toISOString(),
+          evaluatedAt: this.runtime.now(),
         });
       }
     }
 
     return policyDecisionSchema.parse({
       schemaVersion: DADIENG_DECISION_SCHEMA_VERSION,
-      decisionId: randomUUID(),
+      decisionId: this.runtime.createId(),
       eventId: event.eventId,
       outcome: "ALLOW",
       reasonCodes: ["NO_DEFENSE_MATCH"],
       matchedDefenseIds: [],
-      evaluatedAt: new Date().toISOString(),
+      evaluatedAt: this.runtime.now(),
     });
   }
 }
