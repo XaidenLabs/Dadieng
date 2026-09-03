@@ -77,10 +77,28 @@ Status: **Complete**
 
 The SDK must compile as its own package, expose all six lifecycle hooks, preserve local enforcement when telemetry listeners fail, and apply the configured failure policy when content normalization or a Defense Module fails.
 
+## Phase 4 — Portable Defense Module standard
+
+Status: **Complete**
+
+- [x] Versioned manifest, artifact, replay-suite, and SBOM schemas
+- [x] Canonical JSON serialization and deterministic SHA-256 commitments
+- [x] Cross-file defense identity verification
+- [x] Artifact, suite, and SBOM tamper detection
+- [x] Constrained, deterministic `dadieng-rules` runtime
+- [x] Local rejection of arbitrary TypeScript and WebAssembly execution
+- [x] Executable attack and control suite
+- [x] Generated, committed MCP boundary reference bundle
+- [x] SDK migrated from a hard-coded rule to the portable bundle loader
+- [x] Thirty total automated tests passing
+
+### Phase 4 gate
+
+A bundle must reproduce deterministically, pass schema and content-hash verification, execute its committed attack and control suite successfully, and load into the SDK without granting network, filesystem, or clock access.
+
 ## Later phases
 
-- Phase 4: portable Defense Module standard — **Next**
-- Phase 5: complete Threat Receipt pipeline
+- Phase 5: complete Threat Receipt pipeline — **Next**
 - Phase 6: deterministic replay engine
 - Phase 7: control-plane API
 - Phase 8: database and object-storage boundaries

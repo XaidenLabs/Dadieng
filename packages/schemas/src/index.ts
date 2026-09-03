@@ -8,6 +8,9 @@ export const DADIENG_REPLAY_SCHEMA_VERSION = "dadieng.replay-report.v1" as const
 export const DADIENG_ATTESTATION_SCHEMA_VERSION = "dadieng.attestation.v1" as const;
 export const DADIENG_MANIFEST_SCHEMA_VERSION = "dadieng.stable-manifest.v1" as const;
 export const DADIENG_RUN_SCHEMA_VERSION = "dadieng.agent-run.v1" as const;
+export const DADIENG_DEFENSE_ARTIFACT_SCHEMA_VERSION = "dadieng.defense-artifact.v1" as const;
+export const DADIENG_SBOM_SCHEMA_VERSION = "dadieng.sbom.v1" as const;
+export const DADIENG_SUITE_SCHEMA_VERSION = "dadieng.replay-suite.v1" as const;
 
 export const hashSchema = z.string().regex(/^sha256:[a-f0-9]{64}$/, "Expected a sha256 content hash");
 export const timestampSchema = z.string().datetime({ offset: true });
@@ -98,7 +101,7 @@ export const defenseManifestSchema = z.object({
   version: z.string().regex(/^\d+\.\d+\.\d+$/, "Expected a semantic version"),
   name: z.string().min(1),
   authorAgentId: z.string().min(1),
-  runtime: z.enum(["typescript", "wasm"]),
+  runtime: z.enum(["dadieng-rules", "typescript", "wasm"]),
   entrypoint: z.string().min(1),
   permissions: z.object({
     network: z.literal(false),
@@ -114,6 +117,52 @@ export const defenseManifestSchema = z.object({
   artifactHash: hashSchema,
   suiteHash: hashSchema,
   sbomHash: hashSchema,
+});
+
+export const defenseArtifactSchema = z.object({
+  schemaVersion: z.literal(DADIENG_DEFENSE_ARTIFACT_SCHEMA_VERSION),
+  defenseId: z.string().min(1),
+  rules: z.array(z.object({
+    ruleId: z.string().min(1),
+    description: z.string().min(1),
+    stages: z.array(eventStageSchema).min(1),
+    trustZones: z.array(trustZoneSchema).min(1),
+    indicatorGroups: z.array(z.array(z.string().min(1).max(160)).min(1)).min(1),
+    outcome: decisionOutcomeSchema,
+    reasonCodes: z.array(z.string().min(1)).min(1),
+  })).min(1),
+});
+
+export const defenseSbomSchema = z.object({
+  schemaVersion: z.literal(DADIENG_SBOM_SCHEMA_VERSION),
+  defenseId: z.string().min(1),
+  format: z.literal("dadieng-sbom-v1"),
+  packages: z.array(z.object({
+    name: z.string().min(1),
+    version: z.string().min(1),
+    license: z.string().min(1),
+  })),
+});
+
+export const defenseTestSuiteSchema = z.object({
+  schemaVersion: z.literal(DADIENG_SUITE_SCHEMA_VERSION),
+  defenseId: z.string().min(1),
+  cases: z.array(z.object({
+    caseId: z.string().min(1),
+    kind: z.enum(["attack", "control"]),
+    stage: eventStageSchema,
+    trustZone: trustZoneSchema,
+    content: z.string(),
+    expectedOutcome: decisionOutcomeSchema,
+  })).min(1),
+}).superRefine((suite, context) => {
+  const caseIds = new Set<string>();
+  for (const testCase of suite.cases) {
+    if (caseIds.has(testCase.caseId)) {
+      context.addIssue({ code: "custom", message: `Duplicate test case ID ${testCase.caseId}` });
+    }
+    caseIds.add(testCase.caseId);
+  }
 });
 
 const replayResultSummarySchema = z.object({
@@ -232,6 +281,9 @@ export type DadiengEvent = z.infer<typeof dadiengEventSchema>;
 export type PolicyDecision = z.infer<typeof policyDecisionSchema>;
 export type ThreatReceipt = z.infer<typeof threatReceiptSchema>;
 export type DefenseManifest = z.infer<typeof defenseManifestSchema>;
+export type DefenseArtifact = z.infer<typeof defenseArtifactSchema>;
+export type DefenseSbom = z.infer<typeof defenseSbomSchema>;
+export type DefenseTestSuite = z.infer<typeof defenseTestSuiteSchema>;
 export type ReplayReport = z.infer<typeof replayReportSchema>;
 export type ValidatorAttestation = z.infer<typeof validatorAttestationSchema>;
 export type StableManifest = z.infer<typeof stableManifestSchema>;

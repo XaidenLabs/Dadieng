@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 export default defineConfig({
   resolve: {
     alias: {
+      "@dadieng/defense-module/mcp-boundary": fileURLToPath(new URL("./packages/defense-module/src/mcp-boundary.ts", import.meta.url)),
+      "@dadieng/defense-module": fileURLToPath(new URL("./packages/defense-module/src/index.ts", import.meta.url)),
       "@dadieng/schemas": fileURLToPath(new URL("./packages/schemas/src/index.ts", import.meta.url)),
       "@dadieng/policy-engine": fileURLToPath(new URL("./packages/policy-engine/src/index.ts", import.meta.url)),
       "@dadieng/receipt-sanitizer": fileURLToPath(new URL("./packages/receipt-sanitizer/src/index.ts", import.meta.url)),

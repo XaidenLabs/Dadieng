@@ -24,10 +24,12 @@ pnpm demo
 ## Repository map
 
 - `packages/schemas`: shared event, decision, defense, and receipt contracts.
+- `packages/defense-module`: portable bundle creation, verification, loading, and suite execution.
 - `packages/sdk`: installable lifecycle interception and local enforcement SDK.
 - `packages/policy-engine`: deterministic local defense evaluation.
 - `packages/receipt-sanitizer`: privacy-safe incident receipt creation.
 - `examples/mcp-security-demo`: vulnerable and protected executions of the same tool result.
+- `defenses/mcp-boundary`: committed reference bundle with artifact, manifest, suite, and SBOM.
 
 The demo is intentionally simulated: it proves that the vulnerable planner accepts an unsafe request, but it never reads or transmits a real secret.
 

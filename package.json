@@ -11,6 +11,7 @@
     "typecheck": "pnpm build && pnpm -r --if-present typecheck"
   },
   "devDependencies": {
+    "@dadieng/defense-module": "workspace:*",
     "@dadieng/policy-engine": "workspace:*",
     "@dadieng/receipt-sanitizer": "workspace:*",
     "@dadieng/schemas": "workspace:*",

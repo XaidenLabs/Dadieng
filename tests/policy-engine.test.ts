@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { LocalPolicyEngine, mcpBoundaryDefense } from "@dadieng/policy-engine";
+import { loadDefenseBundle } from "@dadieng/defense-module";
+import { createMcpBoundaryBundle } from "@dadieng/defense-module/mcp-boundary";
+import { LocalPolicyEngine } from "@dadieng/policy-engine";
 import { createThreatReceipt } from "@dadieng/receipt-sanitizer";
 import { DADIENG_EVENT_SCHEMA_VERSION, type DadiengEvent } from "@dadieng/schemas";
 
@@ -23,7 +25,7 @@ function eventWith(content: string, trustZone: DadiengEvent["source"]["trustZone
 }
 
 describe("Dadieng MCP boundary defense", () => {
-  const engine = new LocalPolicyEngine([mcpBoundaryDefense]);
+  const engine = new LocalPolicyEngine([loadDefenseBundle(createMcpBoundaryBundle())]);
 
   it("blocks an instruction override that requests secret exfiltration", () => {
     const decision = engine.evaluate(

@@ -1,5 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
-import { LocalPolicyEngine, mcpBoundaryDefense, type PolicyEngineRuntime } from "@dadieng/policy-engine";
+import { loadDefenseBundle } from "@dadieng/defense-module";
+import { createMcpBoundaryBundle } from "@dadieng/defense-module/mcp-boundary";
+import { LocalPolicyEngine, type PolicyEngineRuntime } from "@dadieng/policy-engine";
 import { createThreatReceipt } from "@dadieng/receipt-sanitizer";
 import {
   DADIENG_DECISION_SCHEMA_VERSION,
@@ -139,7 +141,10 @@ export class DadiengClient {
       failMode: config.failMode ?? "last-known-good",
     };
     this.runtime = config.runtime ?? defaultRuntime;
-    this.engine = new LocalPolicyEngine(config.defenses ?? [mcpBoundaryDefense], this.runtime);
+    this.engine = new LocalPolicyEngine(
+      config.defenses ?? [loadDefenseBundle(createMcpBoundaryBundle())],
+      this.runtime,
+    );
   }
 
   beforeModel(input: BeforeModelInput): ProtectionResult {

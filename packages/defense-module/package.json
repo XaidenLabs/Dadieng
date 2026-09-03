@@ -1,0 +1,28 @@
+{
+  "name": "@dadieng/defense-module",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./mcp-boundary": {
+      "types": "./dist/mcp-boundary.d.ts",
+      "import": "./dist/mcp-boundary.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "bundle:mcp": "pnpm --filter @dadieng/schemas build && tsx src/build-mcp-boundary.ts"
+  },
+  "dependencies": {
+    "@dadieng/schemas": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.5"
+  }
+}
