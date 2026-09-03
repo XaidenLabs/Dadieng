@@ -1,17 +1,22 @@
 {
-  "name": "@dadieng/mcp-security-demo",
+  "name": "@dadieng/sdk",
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "demo": "tsx src/index.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@dadieng/policy-engine": "workspace:*",
     "@dadieng/receipt-sanitizer": "workspace:*",
-    "@dadieng/schemas": "workspace:*",
-    "@dadieng/sdk": "workspace:*"
+    "@dadieng/schemas": "workspace:*"
   }
 }

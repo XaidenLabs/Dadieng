@@ -24,6 +24,7 @@ pnpm demo
 ## Repository map
 
 - `packages/schemas`: shared event, decision, defense, and receipt contracts.
+- `packages/sdk`: installable lifecycle interception and local enforcement SDK.
 - `packages/policy-engine`: deterministic local defense evaluation.
 - `packages/receipt-sanitizer`: privacy-safe incident receipt creation.
 - `examples/mcp-security-demo`: vulnerable and protected executions of the same tool result.

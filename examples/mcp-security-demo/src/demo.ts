@@ -1,5 +1,4 @@
-import { LocalPolicyEngine, mcpBoundaryDefense } from "@dadieng/policy-engine";
-import { createThreatReceipt } from "@dadieng/receipt-sanitizer";
+import { createDadieng } from "@dadieng/sdk";
 import {
   DADIENG_RUN_SCHEMA_VERSION,
   agentRunTraceSchema,
@@ -52,17 +51,27 @@ export function runVulnerableAgent(): AgentRunTrace {
 
 export function runProtectedAgent(): AgentRunTrace {
   const event = createFixtureEvent("agent_protected_001");
-  const engine = new LocalPolicyEngine([mcpBoundaryDefense], {
-    createId: () => "decision_protected_001",
-    now: () => FIXED_TIME,
+  const ids = ["event_sdk_protected_001", "decision_protected_001", "receipt_protected_001"];
+  const dadieng = createDadieng({
+    agentId: "agent_protected_001",
+    framework: "mcp-demo",
+    runtime: {
+      createId: () => ids.shift() ?? "unexpected_id",
+      now: () => FIXED_TIME,
+    },
   });
-  const decision = engine.evaluate(event);
+  const result = dadieng.afterToolResult({
+    tool: "external-report-reader",
+    result: event.content,
+    source: event.source,
+    capability: event.capability,
+  });
+  const decision = result.decision;
 
-  if (decision.outcome !== "BLOCK") {
-    throw new Error(`Protected demonstration expected BLOCK, received ${decision.outcome}`);
+  if (decision.outcome !== "BLOCK" || !result.receipt) {
+    throw new Error(`Protected demonstration expected BLOCK with receipt, received ${decision.outcome}`);
   }
-
-  const receipt = createThreatReceipt(event, decision, () => "receipt_protected_001");
+  const receipt = result.receipt;
 
   return agentRunTraceSchema.parse({
     schemaVersion: DADIENG_RUN_SCHEMA_VERSION,

@@ -54,10 +54,32 @@ pnpm demo
 
 The demo must show `unsafe_action_proposed` for the vulnerable path and `attack_blocked` for the protected path while both paths retain the same fixture hash.
 
+## Phase 3 — Dadieng SDK
+
+Status: **Complete**
+
+- [x] Installable `@dadieng/sdk` workspace package
+- [x] `beforeModel()` and `afterModel()` hooks
+- [x] `beforeToolCall()` and `afterToolResult()` hooks
+- [x] `onDecision()` and `onIncident()` subscriptions
+- [x] Runtime event validation and content fingerprinting
+- [x] Canonical object serialization
+- [x] Capability impact inference with explicit overrides
+- [x] Local deterministic Defense Module evaluation
+- [x] Automatic sanitized receipt creation
+- [x] Listener-failure isolation and SDK diagnostics
+- [x] Open, closed, and last-known-good failure behavior
+- [x] Protected MCP example migrated to the public SDK
+- [x] SDK quick-start documentation
+- [x] Twenty-two total automated tests passing
+
+### Phase 3 gate
+
+The SDK must compile as its own package, expose all six lifecycle hooks, preserve local enforcement when telemetry listeners fail, and apply the configured failure policy when content normalization or a Defense Module fails.
+
 ## Later phases
 
-- Phase 3: Dadieng SDK — **Next**
-- Phase 4: portable Defense Module standard
+- Phase 4: portable Defense Module standard — **Next**
 - Phase 5: complete Threat Receipt pipeline
 - Phase 6: deterministic replay engine
 - Phase 7: control-plane API

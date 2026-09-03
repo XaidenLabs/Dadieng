@@ -14,6 +14,7 @@
     "@dadieng/policy-engine": "workspace:*",
     "@dadieng/receipt-sanitizer": "workspace:*",
     "@dadieng/schemas": "workspace:*",
+    "@dadieng/sdk": "workspace:*",
     "@types/node": "^24.0.0",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",
