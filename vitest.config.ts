@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 export default defineConfig({
   resolve: {
     alias: {
+      "@dadieng/control-plane": fileURLToPath(new URL("./apps/control-plane/src/index.ts", import.meta.url)),
       "@dadieng/defense-module/mcp-boundary": fileURLToPath(new URL("./packages/defense-module/src/mcp-boundary.ts", import.meta.url)),
       "@dadieng/defense-module": fileURLToPath(new URL("./packages/defense-module/src/index.ts", import.meta.url)),
       "@dadieng/replay-engine": fileURLToPath(new URL("./packages/replay-engine/src/index.ts", import.meta.url)),

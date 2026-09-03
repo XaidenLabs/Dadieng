@@ -141,10 +141,32 @@ Status: **Complete**
 
 The same verified bundle, suite, environment, seed, runtime services, and dependency lock must reproduce the same report. The reference run must pass all 20 attack and 20 control cases, expose no fixture content, meet candidate thresholds, and fail verification after report or bundle substitution.
 
+## Phase 7 — Control-plane API
+
+Status: **Complete**
+
+- [x] Versioned receipt, defense, defense-version, and replay HTTP routes
+- [x] Fetch-compatible application with a Node HTTP adapter
+- [x] Scoped Bearer API-key authentication boundary
+- [x] Required, tenant- and subject-isolated idempotency for every write
+- [x] RFC 9457-style problem responses with request IDs and field errors
+- [x] One MiB request limit and fixed-window rate limiting
+- [x] Receipt safety and encrypted-evidence commitment verification at intake
+- [x] Public receipt reads that never expose encrypted evidence
+- [x] Verified, immutable Defense Module version publication
+- [x] Queued replay jobs and an independently callable worker step
+- [x] Exact bundle-to-report verification before replay completion
+- [x] Sanitized worker failures with no exception detail in public results
+- [x] Injectable repository boundary and in-memory Phase 7 implementation
+- [x] Sixty-seven total automated tests passing
+
+### Phase 7 gate
+
+The API must reject unauthenticated, unauthorized, non-idempotent, oversized, malformed, or cryptographically inconsistent writes with structured problem responses. Receipt reads must never expose encrypted evidence. A verified Defense Module must publish once, queue a replay, and complete with a report bound to that exact version. The complete workspace must build, type-check, and pass all tests.
+
 ## Later phases
 
-- Phase 7: control-plane API — **Next**
-- Phase 8: database and object-storage boundaries
+- Phase 8: database and object-storage boundaries — **Next**
 - Phase 9: Monad contracts
 - Phase 10: Monad transaction adapter
 - Phase 11: independent validator CLI

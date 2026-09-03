@@ -20,6 +20,8 @@ pnpm install
 pnpm test
 pnpm demo
 pnpm replay:demo
+export DADIENG_API_KEY="replace-with-a-long-random-key"
+pnpm api:start
 ```
 
 ## Repository map
@@ -30,6 +32,7 @@ pnpm replay:demo
 - `packages/policy-engine`: deterministic local defense evaluation.
 - `packages/receipt-sanitizer`: public receipt sanitization, deduplication, and encrypted private evidence.
 - `packages/replay-engine`: deterministic attack/control execution and verifiable replay reports.
+- `apps/control-plane`: authenticated HTTP API for receipt intake, Defense Module publication, and replay jobs.
 - `examples/mcp-security-demo`: vulnerable and protected executions of the same tool result.
 - `defenses/mcp-boundary`: committed reference bundle with artifact, manifest, suite, and SBOM.
 - `replays/mcp-boundary`: committed deterministic report for the reference defense.
