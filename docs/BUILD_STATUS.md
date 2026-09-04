@@ -364,9 +364,30 @@ Status: **Complete**
 
 Envio code generation and the typed handler build must pass from the committed configuration. Replaying contract events must produce deterministic entities and correct Stable and Quarantined counts. The read model must cover the three protocol contracts, expose its indexed block and timestamp, remain reorg-aware, and never replace direct Monad verification for security decisions.
 
+## Phase 15 — operator console
+
+Status: **Complete**
+
+- [x] Responsive Dadieng-branded operator console
+- [x] Overview, Defense Graph, Threat Receipts, Replay Lab, Validators, Integrations, Rewards, and Settings
+- [x] Server-side Envio GraphQL read model with a bounded timeout
+- [x] Explicit live, stale, offline, and demonstration-data states
+- [x] Quarantine, rollback, pending-finality, and validator-threshold visibility
+- [x] Human approval and evidence-privacy boundaries
+- [x] Keyboard focus, semantic landmarks, status text, and reduced-motion support
+- [x] Production Cloudflare Worker build
+- [x] Two production-render and accessibility-state scenarios
+- [x] One hundred and thirty total automated tests passing across the workspace
+
+### Phase 15 gate
+
+The production site must render all required protocol surfaces and remain
+usable at desktop and mobile widths. An indexer failure must be visible and
+must never imply that derived data can authorize a protocol action. The
+production worker build and server-render tests must pass.
+
 ## Later phases
 
-- Phase 15: minimal operator console
 - Phase 16: sponsor integrations
 - Phase 17: external integrations
 - Phase 18: final demonstration
