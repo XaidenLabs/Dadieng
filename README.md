@@ -42,6 +42,7 @@ pnpm api:start
 - `indexer`: Envio HyperIndex configuration, GraphQL security graph, lifecycle handlers, and freshness model.
 - `apps/web`: private operator console driven by the Envio read model.
 - `packages/sponsor-integrations`: Chainlink CRE, Dynamic signing, Mera PRF evidence, and Qwen red-team boundaries.
+- `packages/adapters`: drop-in TypeScript MCP and Vercel AI SDK protection.
 - `examples/cre-validation-workflow`: deployable Chainlink CRE scheduling and consensus callback workflow.
 - `examples/mcp-security-demo`: vulnerable and protected executions of the same tool result.
 - `defenses/mcp-boundary`: committed reference bundle with artifact, manifest, suite, and SBOM.

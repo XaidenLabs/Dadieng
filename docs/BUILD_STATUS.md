@@ -411,7 +411,28 @@ may propose attacks but cannot decide a release. Dynamic signatures must bind
 protocol intent. A separately created provider instance must derive the Mera
 key needed to decrypt the same envelope without a persisted key.
 
+## Phase 17 — external framework adapters
+
+Status: **Complete**
+
+- [x] Official TypeScript MCP client-compatible proxy
+- [x] MCP argument enforcement before network execution
+- [x] MCP result enforcement before model ingestion
+- [x] Vercel AI SDK 7 v4 language-model middleware
+- [x] AI SDK model-input and complete-generation enforcement
+- [x] AI SDK tool-execution wrapper preserving tool metadata
+- [x] Content-safe typed failure with sanitized decision and receipt IDs
+- [x] Copy-paste integration examples and fifteen-minute adoption path
+- [x] Four Phase 17 transparent-path and containment scenarios
+- [x] One hundred and forty-one total automated tests passing across the workspace
+
+### Phase 17 gate
+
+Both adapters must compile against their current upstream package contracts.
+Normal calls must remain transparent. Poisoned arguments or results must fail
+before crossing the protected boundary, and errors must not repeat hostile
+content. The Vercel adapter must use the stable v4 middleware contract.
+
 ## Later phases
 
-- Phase 17: external integrations
 - Phase 18: final demonstration
