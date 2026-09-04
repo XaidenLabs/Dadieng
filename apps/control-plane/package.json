@@ -11,7 +11,9 @@
   },
   "files": ["dist"],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && mkdir -p dist/migrations && cp src/migrations/*.sql dist/migrations/",
+    "db:migrate": "tsx src/migrate.ts",
+    "retention:purge": "tsx src/retention.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "tsx src/start.ts"
   },
@@ -20,9 +22,11 @@
     "@dadieng/receipt-sanitizer": "workspace:*",
     "@dadieng/replay-engine": "workspace:*",
     "@dadieng/schemas": "workspace:*",
+    "pg": "^8.23.0",
     "zod": "^4.1.5"
   },
   "devDependencies": {
+    "@types/pg": "^8.23.1",
     "tsx": "^4.20.5"
   }
 }

@@ -164,10 +164,34 @@ Status: **Complete**
 
 The API must reject unauthenticated, unauthorized, non-idempotent, oversized, malformed, or cryptographically inconsistent writes with structured problem responses. Receipt reads must never expose encrypted evidence. A verified Defense Module must publish once, queue a replay, and complete with a report bound to that exact version. The complete workspace must build, type-check, and pass all tests.
 
+## Phase 8 — Database and object-storage boundaries
+
+Status: **Complete**
+
+- [x] Versioned, transactional Postgres migration
+- [x] Durable Postgres repository for receipts, defenses, versions, replay jobs, and idempotency
+- [x] Database constraints for receipt deduplication, immutable version IDs, replay states, and response completeness
+- [x] Content-addressed encrypted-evidence object-store interface
+- [x] Durable filesystem adapter with confined paths, atomic writes, and owner-only modes
+- [x] SHA-256 verification on every evidence write and read
+- [x] Evidence ciphertext excluded from relational rows
+- [x] Tenant authorization enforced for private evidence retrieval
+- [x] Configurable evidence deletion with a 30-day maximum retention default
+- [x] Public receipt commitment retained after private evidence deletion
+- [x] Atomic replay-worker claims across repository instances
+- [x] Durable idempotency ownership leases with crash recovery
+- [x] Database and object-store dependency health checks
+- [x] Explicit migration and retention operator commands
+- [x] Persistence restart, concurrency, integrity, traversal, retention, privacy, and crash-retry tests
+- [x] Seventy-eight total automated tests passing
+
+### Phase 8 gate
+
+Metadata must survive repository and service reconstruction. Evidence ciphertext must exist only in the private object store, verify against its public commitment, remain inaccessible across tenants, and be deletable without removing the public receipt hash. Concurrent idempotency and replay claims must have a single owner and recover safely after an abandoned lease. Migrations must be repeatable, and dependency failures must produce sanitized health responses.
+
 ## Later phases
 
-- Phase 8: database and object-storage boundaries — **Next**
-- Phase 9: Monad contracts
+- Phase 9: Monad contracts — **Next**
 - Phase 10: Monad transaction adapter
 - Phase 11: independent validator CLI
 - Phase 12: stable manifest synchronization

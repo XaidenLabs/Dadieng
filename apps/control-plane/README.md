@@ -6,6 +6,9 @@ The control plane is the Phase 7 HTTP boundary for Dadieng. It accepts sanitized
 
 ```bash
 export DADIENG_API_KEY="replace-with-a-long-random-key"
+export DATABASE_URL="postgresql://dadieng:replace-me@127.0.0.1:5432/dadieng"
+export DADIENG_OBJECT_ROOT="./.dadieng/objects"
+pnpm db:migrate
 pnpm api:start
 ```
 
@@ -29,6 +32,22 @@ Attestation, channel, usage, and approval route families are reserved and return
 
 ## Storage boundary
 
-The service depends on `ControlPlaneRepository`, not directly on a database. Phase 7 includes an in-memory implementation for deterministic development and tests. It is intentionally non-durable and single-process; Phase 8 will supply persistent database and object-storage adapters without changing the HTTP or service contracts.
+Phase 8 uses Postgres for public metadata, defense versions, replay state, durable idempotency leases, and evidence-object references. Encrypted evidence bytes are stored separately in a content-addressed filesystem store with owner-only file modes. The included interfaces keep both components replaceable by managed Postgres and S3-compatible storage later.
 
-The public receipt route never returns the encrypted evidence envelope. That envelope is retained only behind the repository's private receipt record boundary.
+The database never contains evidence ciphertext, and the public receipt route never returns the encrypted evidence envelope. Private retrieval checks the authenticated tenant and verifies the stored bytes against the receipt's SHA-256 commitment before parsing them.
+
+Postgres migrations are transactional and idempotent:
+
+```bash
+pnpm db:migrate
+```
+
+Evidence retention defaults to 30 days and can only be configured downward for the MVP:
+
+```bash
+EVIDENCE_RETENTION_DAYS=30 pnpm retention:purge
+```
+
+Deleting retained evidence removes its object and clears the private object reference while preserving the public receipt and immutable evidence hash. `pg-mem` is used only for fast compatibility tests; deployed services must use PostgreSQL.
+
+The server health route checks both the database and object-storage root. It returns a sanitized `503` if either dependency is unavailable.

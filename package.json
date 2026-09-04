@@ -10,6 +10,8 @@
     "replay:demo": "pnpm --filter @dadieng/replay-engine demo",
     "replay:report": "pnpm --filter @dadieng/replay-engine report:mcp",
     "api:start": "pnpm --filter @dadieng/control-plane start",
+    "db:migrate": "pnpm --filter @dadieng/control-plane db:migrate",
+    "retention:purge": "pnpm --filter @dadieng/control-plane retention:purge",
     "test": "vitest run",
     "typecheck": "pnpm build && pnpm -r --if-present typecheck"
   },
@@ -22,6 +24,7 @@
     "@dadieng/schemas": "workspace:*",
     "@dadieng/sdk": "workspace:*",
     "@types/node": "^24.0.0",
+    "pg-mem": "^3.0.14",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"

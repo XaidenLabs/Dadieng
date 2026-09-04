@@ -18,6 +18,7 @@ const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 
 export interface HttpRuntime {
   createRequestId(): string;
+  now(): string;
 }
 
 export interface RequestContext {
@@ -63,7 +64,7 @@ interface RouteResult {
   headers?: Record<string, string>;
 }
 
-const defaultHttpRuntime: HttpRuntime = { createRequestId: randomUUID };
+const defaultHttpRuntime: HttpRuntime = { createRequestId: randomUUID, now: () => new Date().toISOString() };
 
 function fieldErrors(error: ZodError): Record<string, string[]> {
   const fields: Record<string, string[]> = {};
@@ -163,6 +164,7 @@ export class ControlPlaneHttpApp {
       const url = new URL(request.url);
       const path = url.pathname;
       if (request.method === "GET" && path === "/health") {
+        await this.service.checkHealth();
         return jsonResponse({ status: 200, body: { status: "ok" }, headers: { "cache-control": "no-store" } }, requestId);
       }
 
@@ -170,14 +172,14 @@ export class ControlPlaneHttpApp {
       if (request.method === "GET" && receiptMatch?.[1]) {
         return jsonResponse({
           status: 200,
-          body: this.service.getPublicReceipt(receiptMatch[1]),
+          body: await this.service.getPublicReceipt(receiptMatch[1]),
           headers: { "cache-control": "public, max-age=60" },
         }, requestId);
       }
 
       const replayMatch = path.match(/^\/v1\/replays\/([A-Za-z0-9._:-]+)$/);
       if (request.method === "GET" && replayMatch?.[1]) {
-        const job = this.service.getReplay(replayMatch[1]);
+        const job = await this.service.getReplay(replayMatch[1]);
         return jsonResponse({
           status: 200,
           body: {
@@ -191,21 +193,21 @@ export class ControlPlaneHttpApp {
       }
 
       if (request.method === "POST" && path === "/v1/receipts") {
-        return await this.write(request, requestId, "receipts:write", createReceiptRequestSchema, (principal, input) => {
-          const result = this.service.createReceipt(principal, input);
+        return await this.write(request, requestId, "receipts:write", createReceiptRequestSchema, async (principal, input) => {
+          const result = await this.service.createReceipt(principal, input);
           return { status: result.status === "duplicate" ? 200 : 201, body: result };
         });
       }
       if (request.method === "POST" && path === "/v1/defenses") {
-        return await this.write(request, requestId, "defenses:write", createDefenseRequestSchema, (principal, input) => ({
+        return await this.write(request, requestId, "defenses:write", createDefenseRequestSchema, async (principal, input) => ({
           status: 201,
-          body: { defense: this.service.createDefense(principal, input) },
+          body: { defense: await this.service.createDefense(principal, input) },
         }));
       }
       const versionMatch = path.match(/^\/v1\/defenses\/([A-Za-z0-9._:-]+)\/versions$/);
       if (request.method === "POST" && versionMatch?.[1]) {
-        return await this.write(request, requestId, "defenses:write", createDefenseVersionRequestSchema, (principal, input) => {
-          const version = this.service.createDefenseVersion(principal, versionMatch[1]!, input);
+        return await this.write(request, requestId, "defenses:write", createDefenseVersionRequestSchema, async (principal, input) => {
+          const version = await this.service.createDefenseVersion(principal, versionMatch[1]!, input);
           const verified = verifyDefenseBundle(version.bundle);
           return {
             status: 201,
@@ -218,8 +220,8 @@ export class ControlPlaneHttpApp {
         });
       }
       if (request.method === "POST" && path === "/v1/replays") {
-        return await this.write(request, requestId, "replays:write", createReplayRequestSchema, (principal, input) => {
-          const replay = this.service.createReplay(principal, input);
+        return await this.write(request, requestId, "replays:write", createReplayRequestSchema, async (principal, input) => {
+          const replay = await this.service.createReplay(principal, input);
           return { status: 202, body: { replayId: replay.replayId, status: replay.status } };
         });
       }
@@ -240,7 +242,7 @@ export class ControlPlaneHttpApp {
     requestId: string,
     scope: ApiScope,
     schema: ZodType<T>,
-    action: (principal: ApiPrincipal, input: T) => RouteResult,
+    action: (principal: ApiPrincipal, input: T) => Promise<RouteResult>,
   ): Promise<Response> {
     const principal = this.authenticator.authenticate(request.headers.get("authorization"));
     requireScope(principal, scope);
@@ -250,23 +252,29 @@ export class ControlPlaneHttpApp {
     }
     const { parsed, rawHash } = await parseBody(request, schema);
     const storageKey = `${principal.tenantId}:${principal.subject}:${request.method}:${new URL(request.url).pathname}:${idempotencyKey}`;
-    const existing = this.service.repository.getIdempotency(storageKey);
-    if (existing) {
-      if (existing.requestHash !== rawHash) {
-        throw new ApiProblem(409, "idempotency-conflict", "Idempotency conflict", "The Idempotency-Key was already used with another request body.");
-      }
-      return storedResponse(existing);
+    const claim = await this.service.repository.claimIdempotency(storageKey, rawHash, this.runtime.now());
+    if (claim.outcome === "conflict") {
+      throw new ApiProblem(409, "idempotency-conflict", "Idempotency conflict", "The Idempotency-Key was already used with another request body.");
     }
+    if (claim.outcome === "in-progress") {
+      throw new ApiProblem(409, "idempotency-in-progress", "Operation in progress", "The matching idempotent operation has not completed yet.");
+    }
+    if (claim.outcome === "replay") return storedResponse(claim.response);
 
-    const result = action(principal, parsed);
-    const body = { ...result.body, requestId };
-    const headers = { "cache-control": "no-store", ...(result.headers ?? {}) };
-    this.service.repository.saveIdempotency(storageKey, {
-      requestHash: rawHash,
-      status: result.status,
-      body,
-      headers,
-    });
-    return response(result.status, body, "application/json", headers);
+    try {
+      const result = await action(principal, parsed);
+      const body = { ...result.body, requestId };
+      const headers = { "cache-control": "no-store", ...(result.headers ?? {}) };
+      await this.service.repository.completeIdempotency(storageKey, claim.token, {
+        requestHash: rawHash,
+        status: result.status,
+        body,
+        headers,
+      }, this.runtime.now());
+      return response(result.status, body, "application/json", headers);
+    } catch (error) {
+      await this.service.repository.abandonIdempotency(storageKey, claim.token);
+      throw error;
+    }
   }
 }

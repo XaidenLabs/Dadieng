@@ -21,6 +21,9 @@ pnpm test
 pnpm demo
 pnpm replay:demo
 export DADIENG_API_KEY="replace-with-a-long-random-key"
+export DATABASE_URL="postgresql://dadieng:replace-me@127.0.0.1:5432/dadieng"
+export DADIENG_OBJECT_ROOT="./.dadieng/objects"
+pnpm db:migrate
 pnpm api:start
 ```
 
@@ -32,7 +35,7 @@ pnpm api:start
 - `packages/policy-engine`: deterministic local defense evaluation.
 - `packages/receipt-sanitizer`: public receipt sanitization, deduplication, and encrypted private evidence.
 - `packages/replay-engine`: deterministic attack/control execution and verifiable replay reports.
-- `apps/control-plane`: authenticated HTTP API for receipt intake, Defense Module publication, and replay jobs.
+- `apps/control-plane`: authenticated HTTP API with Postgres metadata and content-addressed encrypted-evidence storage.
 - `examples/mcp-security-demo`: vulnerable and protected executions of the same tool result.
 - `defenses/mcp-boundary`: committed reference bundle with artifact, manifest, suite, and SBOM.
 - `replays/mcp-boundary`: committed deterministic report for the reference defense.

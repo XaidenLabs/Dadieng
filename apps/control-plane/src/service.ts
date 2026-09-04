@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { contentHash, verifyDefenseBundle, type DefenseBundle } from "@dadieng/defense-module";
+import { canonicalJson, contentHash, verifyDefenseBundle, type DefenseBundle } from "@dadieng/defense-module";
 import { assertPublicReceiptSafe, verifyEvidenceCommitment } from "@dadieng/receipt-sanitizer";
 import { runReplay, verifyReplayReport } from "@dadieng/replay-engine";
-import type { ReplayReport } from "@dadieng/schemas";
+import { encryptedThreatEvidenceSchema, type ReplayReport } from "@dadieng/schemas";
 import type { ApiPrincipal } from "./auth.js";
 import type {
   CreateDefenseRequest,
@@ -11,6 +11,7 @@ import type {
   CreateReplayRequest,
 } from "./contracts.js";
 import { ApiProblem } from "./errors.js";
+import { InMemoryPrivateObjectStore, type PrivateObjectStore } from "./object-store.js";
 import type {
   ControlPlaneRepository,
   DefenseRecord,
@@ -18,6 +19,7 @@ import type {
   ReceiptRecord,
   ReplayJobRecord,
 } from "./repository.js";
+import { RepositoryConflictError } from "./repository.js";
 
 export interface ControlPlaneRuntime {
   createId(): string;
@@ -47,9 +49,18 @@ export class ControlPlaneService {
     readonly repository: ControlPlaneRepository,
     private readonly runtime: ControlPlaneRuntime = defaultRuntime,
     private readonly replayExecutor: ReplayExecutor = defaultReplayExecutor,
+    readonly objectStore: PrivateObjectStore = new InMemoryPrivateObjectStore(),
   ) {}
 
-  createReceipt(principal: ApiPrincipal, input: CreateReceiptRequest) {
+  async checkHealth(): Promise<void> {
+    try {
+      await Promise.all([this.repository.healthCheck(), this.objectStore.healthCheck()]);
+    } catch {
+      throw new ApiProblem(503, "storage-unavailable", "Storage unavailable", "A required persistence service is unavailable.");
+    }
+  }
+
+  async createReceipt(principal: ApiPrincipal, input: CreateReceiptRequest) {
     let receipt;
     try {
       receipt = assertPublicReceiptSafe(input.receipt);
@@ -65,46 +76,77 @@ export class ControlPlaneService {
     if (!evidenceMatches) {
       throw new ApiProblem(422, "evidence-commitment-mismatch", "Evidence commitment mismatch", "The encrypted evidence does not match the public receipt commitment.");
     }
-    const duplicate = this.repository.findReceiptByDeduplicationKey(principal.tenantId, receipt.deduplicationKey);
-    if (duplicate) return this.receiptResult(duplicate, input.publishCommitment, true);
-    if (this.repository.getReceipt(receipt.receiptId)) {
-      throw new ApiProblem(409, "receipt-id-conflict", "Receipt ID conflict", "The receipt ID is already registered.");
-    }
-
+    const storedAt = this.runtime.now();
+    const evidenceBytes = Buffer.from(canonicalJson(input.encryptedEvidence));
+    const evidenceObject = await this.objectStore.put({
+      tenantId: principal.tenantId,
+      category: "evidence",
+      objectId: receipt.receiptId,
+      bytes: evidenceBytes,
+      expectedHash: receipt.evidence.hash,
+    });
     const record: ReceiptRecord = {
       tenantId: principal.tenantId,
       receipt,
-      encryptedEvidence: input.encryptedEvidence,
-      createdAt: this.runtime.now(),
+      evidenceHash: receipt.evidence.hash,
+      evidenceObject: {
+        uri: evidenceObject.uri,
+        hash: evidenceObject.contentHash,
+        sizeBytes: evidenceObject.sizeBytes,
+        storedAt,
+      },
+      createdAt: storedAt,
     };
-    this.repository.saveReceipt(record);
-    return this.receiptResult(record, input.publishCommitment, false);
+    try {
+      const result = await this.repository.saveReceipt(record);
+      if (!result.created && result.record.evidenceObject?.uri !== evidenceObject.uri) {
+        await this.objectStore.delete(evidenceObject.uri);
+      }
+      return this.receiptResult(result.record, input.publishCommitment, !result.created);
+    } catch (error) {
+      await this.objectStore.delete(evidenceObject.uri);
+      if (error instanceof RepositoryConflictError && error.conflict === "receipt-id") {
+        throw new ApiProblem(409, "receipt-id-conflict", "Receipt ID conflict", "The receipt ID is already registered.");
+      }
+      throw error;
+    }
   }
 
-  getPublicReceipt(receiptId: string) {
-    const record = this.repository.getReceipt(receiptId);
+  async getPublicReceipt(receiptId: string) {
+    const record = await this.repository.getReceipt(receiptId);
     if (!record) throw new ApiProblem(404, "receipt-not-found", "Receipt not found", "No public receipt exists for this ID.");
     return { receipt: record.receipt, resolution: { status: "unresolved" as const } };
   }
 
-  createDefense(principal: ApiPrincipal, input: CreateDefenseRequest): DefenseRecord {
+  async getPrivateEvidence(principal: ApiPrincipal, receiptId: string) {
+    const record = await this.repository.getReceiptForTenant(principal.tenantId, receiptId);
+    if (!record) {
+      throw new ApiProblem(404, "receipt-not-found", "Receipt not found", "No receipt exists for this tenant and ID.");
+    }
+    if (!record.evidenceObject) {
+      throw new ApiProblem(410, "evidence-expired", "Evidence expired", "The retained evidence object has been deleted.");
+    }
+    const bytes = await this.objectStore.get(record.evidenceObject.uri, record.evidenceHash);
+    return encryptedThreatEvidenceSchema.parse(JSON.parse(Buffer.from(bytes).toString("utf8")));
+  }
+
+  async createDefense(principal: ApiPrincipal, input: CreateDefenseRequest): Promise<DefenseRecord> {
     if (input.authorAgentId !== principal.subject) {
       throw new ApiProblem(403, "author-mismatch", "Author mismatch", "A defense author must match the authenticated subject.");
     }
-    if (this.repository.getDefense(input.defenseId)) {
+    const record = { ...input, createdAt: this.runtime.now() };
+    if (!await this.repository.saveDefense(record)) {
       throw new ApiProblem(409, "defense-conflict", "Defense already exists", "The defense ID is already registered.");
     }
-    const record = { ...input, createdAt: this.runtime.now() };
-    this.repository.saveDefense(record);
     return record;
   }
 
-  createDefenseVersion(
+  async createDefenseVersion(
     principal: ApiPrincipal,
     defenseId: string,
     input: CreateDefenseVersionRequest,
-  ): DefenseVersionRecord {
-    const defense = this.repository.getDefense(defenseId);
+  ): Promise<DefenseVersionRecord> {
+    const defense = await this.repository.getDefense(defenseId);
     if (!defense) throw new ApiProblem(404, "defense-not-found", "Defense not found", "Register the defense before publishing a version.");
     if (defense.authorAgentId !== principal.subject) {
       throw new ApiProblem(403, "not-defense-author", "Not defense author", "Only the registered author may publish a version.");
@@ -119,9 +161,6 @@ export class ControlPlaneService {
       throw new ApiProblem(422, "defense-id-mismatch", "Defense ID mismatch", "The bundle identity does not match the route.");
     }
     const defenseVersionId = `${defenseId}@${bundle.manifest.version}`;
-    if (this.repository.getDefenseVersion(defenseVersionId)) {
-      throw new ApiProblem(409, "version-conflict", "Defense version already exists", "Published versions are immutable.");
-    }
     const record: DefenseVersionRecord = {
       defenseVersionId,
       defenseId,
@@ -129,12 +168,14 @@ export class ControlPlaneService {
       status: "candidate",
       createdAt: this.runtime.now(),
     };
-    this.repository.saveDefenseVersion(record);
+    if (!await this.repository.saveDefenseVersion(record)) {
+      throw new ApiProblem(409, "version-conflict", "Defense version already exists", "Published versions are immutable.");
+    }
     return record;
   }
 
-  createReplay(principal: ApiPrincipal, input: CreateReplayRequest): ReplayJobRecord {
-    if (!this.repository.getDefenseVersion(input.defenseVersionId)) {
+  async createReplay(principal: ApiPrincipal, input: CreateReplayRequest): Promise<ReplayJobRecord> {
+    if (!await this.repository.getDefenseVersion(input.defenseVersionId)) {
       throw new ApiProblem(404, "defense-version-not-found", "Defense version not found", "Publish the exact version before scheduling replay.");
     }
     const now = this.runtime.now();
@@ -146,24 +187,21 @@ export class ControlPlaneService {
       createdAt: now,
       updatedAt: now,
     };
-    this.repository.saveReplay(record);
+    await this.repository.saveReplay(record);
     return record;
   }
 
-  getReplay(replayId: string): ReplayJobRecord {
-    const record = this.repository.getReplay(replayId);
+  async getReplay(replayId: string): Promise<ReplayJobRecord> {
+    const record = await this.repository.getReplay(replayId);
     if (!record) throw new ApiProblem(404, "replay-not-found", "Replay not found", "No replay exists for this ID.");
     return record;
   }
 
-  runNextReplay(): ReplayJobRecord | undefined {
-    const job = this.repository.nextQueuedReplay();
+  async runNextReplay(): Promise<ReplayJobRecord | undefined> {
+    const job = await this.repository.claimNextReplay(this.runtime.now());
     if (!job) return undefined;
-    job.status = "running";
-    job.updatedAt = this.runtime.now();
-    this.repository.saveReplay(job);
 
-    const version = this.repository.getDefenseVersion(job.request.defenseVersionId);
+    const version = await this.repository.getDefenseVersion(job.request.defenseVersionId);
     if (!version) return this.failReplay(job, "DEFENSE_VERSION_MISSING");
     try {
       const report = this.replayExecutor(version.bundle, job.request);
@@ -171,18 +209,32 @@ export class ControlPlaneService {
       job.status = "completed";
       job.report = report;
       job.updatedAt = this.runtime.now();
-      this.repository.saveReplay(job);
+      await this.repository.saveReplay(job);
       return job;
     } catch {
       return this.failReplay(job, "REPLAY_EXECUTION_FAILED");
     }
   }
 
-  private failReplay(job: ReplayJobRecord, errorCode: string): ReplayJobRecord {
+  async purgeEvidenceBefore(cutoff: string, limit = 100): Promise<number> {
+    if (Number.isNaN(Date.parse(cutoff))) throw new Error("Retention cutoff must be an RFC 3339 timestamp");
+    if (!Number.isInteger(limit) || limit < 1 || limit > 1_000) throw new Error("Retention purge limit must be between 1 and 1000");
+    const records = await this.repository.listExpiredEvidence(cutoff, limit);
+    let deleted = 0;
+    for (const record of records) {
+      if (!record.evidenceObject) continue;
+      await this.objectStore.delete(record.evidenceObject.uri);
+      await this.repository.markEvidenceDeleted(record.receipt.receiptId, this.runtime.now());
+      deleted += 1;
+    }
+    return deleted;
+  }
+
+  private async failReplay(job: ReplayJobRecord, errorCode: string): Promise<ReplayJobRecord> {
     job.status = "failed";
     job.errorCode = errorCode;
     job.updatedAt = this.runtime.now();
-    this.repository.saveReplay(job);
+    await this.repository.saveReplay(job);
     return job;
   }
 

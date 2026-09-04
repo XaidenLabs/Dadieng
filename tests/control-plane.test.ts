@@ -36,7 +36,7 @@ function sequenceRuntime(prefix: string): ControlPlaneRuntime {
 
 function httpRuntime(): HttpRuntime {
   let sequence = 0;
-  return { createRequestId: () => `request_${++sequence}` };
+  return { createRequestId: () => `request_${++sequence}`, now: () => FIXED_TIME };
 }
 
 const deterministicReplay: ReplayExecutor = (bundle, request) => runReplay(bundle, {
@@ -133,6 +133,18 @@ describe("Dadieng control-plane API", () => {
     expect(await json(response)).toEqual({ status: "ok", requestId: "request_1" });
   });
 
+  it("reports an unavailable persistence dependency without leaking its error", async () => {
+    const { app, repository } = createHarness();
+    repository.healthCheck = async () => { throw new Error("postgres://user:secret@private-host"); };
+    const response = await app.handle(new Request("http://dadieng.local/health"));
+    const serialized = await response.text();
+
+    expect(response.status).toBe(503);
+    expect(serialized).toContain("storage-unavailable");
+    expect(serialized).not.toContain("private-host");
+    expect(serialized).not.toContain("secret");
+  });
+
   it("requires authentication, scope, and an idempotency key for writes", async () => {
     const payload = receiptPayload();
     const { app } = createHarness([]);
@@ -178,7 +190,11 @@ describe("Dadieng control-plane API", () => {
     expect(publicBody.receipt.receiptId).toBe(payload.receipt.receiptId);
     expect(publicBody.encryptedEvidence).toBeUndefined();
     expect(JSON.stringify(publicBody)).not.toContain(payload.encryptedEvidence.ciphertext);
-    expect(repository.getReceipt(payload.receipt.receiptId)?.encryptedEvidence.ciphertext).toBe(payload.encryptedEvidence.ciphertext);
+    const privateEvidence = await app.service.getPrivateEvidence({
+      subject: "dadieng.core", tenantId: "tenant_test", scopes: ALL_SCOPES,
+    }, payload.receipt.receiptId);
+    expect(privateEvidence.ciphertext).toBe(payload.encryptedEvidence.ciphertext);
+    expect((await repository.getReceipt(payload.receipt.receiptId))?.evidenceObject?.uri).toBeDefined();
   });
 
   it("rejects an evidence envelope that does not match the public commitment", async () => {
@@ -252,7 +268,7 @@ describe("Dadieng control-plane API", () => {
 
     expect(queued.status).toBe(202);
     expect(queuedBody.status).toBe("queued");
-    expect(service.runNextReplay()?.status).toBe("completed");
+    expect((await service.runNextReplay())?.status).toBe("completed");
 
     const result = await app.handle(new Request(`http://dadieng.local/v1/replays/${queuedBody.replayId}`));
     const resultBody = await json(result);
@@ -275,7 +291,7 @@ describe("Dadieng control-plane API", () => {
     await publishBundle(app);
     const queued = await post(app, "/v1/replays", { defenseVersionId: "dadieng.mcp-boundary@0.2.0", environment }, "failed-replay");
     const queuedBody = await json(queued);
-    service.runNextReplay();
+    await service.runNextReplay();
     const result = await app.handle(new Request(`http://dadieng.local/v1/replays/${queuedBody.replayId}`));
     const serialized = await result.text();
 
