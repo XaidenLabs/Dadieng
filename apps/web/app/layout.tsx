@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.DADIENG_PUBLIC_APP_URL ?? "http://localhost:3000"),
+  metadataBase: new URL(process.env.DADIENG_PUBLIC_APP_URL ?? "https://dadieng-console.dadiengalfred.chatgpt.site"),
   title: { default: "Dadieng Console", template: "%s · Dadieng" },
   description: "Operate and inspect the shared defense network for AI agents.",
   icons: { icon: "/dadieng-logo.png", shortcut: "/dadieng-logo.png" },
