@@ -342,9 +342,30 @@ Status: **Complete**
 
 A quarantine request must expose its reason, evidence commitment, replacement, and pending chain operation without claiming finality. Once Monad reports the selected version as Quarantined, the manifest publisher must stop serving it immediately, link a new signed manifest to the prior hash, and select only the highest older version that remains Stable with matching commitments. The SDK must verify and activate that rollback as one complete set.
 
+## Phase 14 — Envio indexer
+
+Status: **Complete**
+
+- [x] HyperIndex v3 project pinned to Envio 3.9.0
+- [x] Monad Testnet chain and environment-driven deployment configuration
+- [x] Registry, Validation, and Rewards event coverage
+- [x] Defense graph and lifecycle-version entities
+- [x] Replay, safety-action, replacement, and receipt projections
+- [x] Validator identity, attestation, challenge, and threshold projections
+- [x] Usage, adoption, allocation, claim, and pause projections
+- [x] Aggregate protocol metrics with indexed block and timestamp
+- [x] Reorg rollback and deterministic event-derived IDs
+- [x] Stale-index detection that cannot authorize protocol actions
+- [x] Successful Envio code generation and typed handler build
+- [x] Three Phase 14 projection, freshness, and artifact-completeness scenarios
+- [x] One hundred and twenty-eight total automated tests passing across the workspace
+
+### Phase 14 gate
+
+Envio code generation and the typed handler build must pass from the committed configuration. Replaying contract events must produce deterministic entities and correct Stable and Quarantined counts. The read model must cover the three protocol contracts, expose its indexed block and timestamp, remain reorg-aware, and never replace direct Monad verification for security decisions.
+
 ## Later phases
 
-- Phase 14: Envio indexer
 - Phase 15: minimal operator console
 - Phase 16: sponsor integrations
 - Phase 17: external integrations

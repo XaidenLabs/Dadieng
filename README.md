@@ -39,6 +39,7 @@ pnpm api:start
 - `apps/control-plane`: authenticated HTTP API, signed Stable channel publication, Postgres metadata, and content-addressed encrypted-evidence storage.
 - `apps/validator-cli`: independent job claiming, Monad commitment verification, replay, signing, and validator-wallet submission.
 - `contracts`: immutable Monad registry, independent validation, usage commitment, and reward contracts.
+- `indexer`: Envio HyperIndex configuration, GraphQL security graph, lifecycle handlers, and freshness model.
 - `examples/mcp-security-demo`: vulnerable and protected executions of the same tool result.
 - `defenses/mcp-boundary`: committed reference bundle with artifact, manifest, suite, and SBOM.
 - `replays/mcp-boundary`: committed deterministic report for the reference defense.

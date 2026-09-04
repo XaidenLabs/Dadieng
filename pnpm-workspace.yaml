@@ -3,6 +3,7 @@ packages:
   - "contracts"
   - "packages/*"
   - "examples/*"
+  - "indexer"
 
 allowBuilds:
   esbuild: true
