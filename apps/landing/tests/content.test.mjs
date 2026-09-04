@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const root = new URL('../', import.meta.url);
@@ -15,6 +15,7 @@ test('ships Dadieng product and SDK content without legacy product claims', asyn
   assert.match(content, /npm trusted publishing/);
   assert.match(content, /Monad/);
   assert.doesNotMatch(content, /Universal Solana Orchestrator|@xaidenlabs\/uso|uso init/i);
+  await assert.rejects(access(new URL('public/.well-known/ory-verify.txt', root)));
 });
 
 test('build contains a Cloudflare worker and both branded assets', async () => {

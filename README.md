@@ -44,6 +44,8 @@ pnpm api:start
 - `packages/sponsor-integrations`: Chainlink CRE, Dynamic signing, Mera PRF evidence, and Qwen red-team boundaries.
 - `packages/adapters`: drop-in TypeScript MCP and Vercel AI SDK protection.
 - `examples/cre-validation-workflow`: deployable Chainlink CRE scheduling and consensus callback workflow.
+- `examples/full-protocol-demo`: credential-free eight-stage proof with 100 deterministic replay executions.
+- `apps/landing`: Dadieng product site and SDK documentation.
 - `examples/mcp-security-demo`: vulnerable and protected executions of the same tool result.
 - `defenses/mcp-boundary`: committed reference bundle with artifact, manifest, suite, and SBOM.
 - `replays/mcp-boundary`: committed deterministic report for the reference defense.

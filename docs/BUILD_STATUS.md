@@ -433,6 +433,29 @@ Normal calls must remain transparent. Poisoned arguments or results must fail
 before crossing the protected boundary, and errors must not repeat hostile
 content. The Vercel adapter must use the stable v4 middleware contract.
 
-## Later phases
+## Phase 18 — final demonstration and release readiness
 
-- Phase 18: final demonstration
+Status: **Complete locally; external testnet and sponsor evidence pending owner credentials**
+
+- [x] Eight-stage attack-to-second-agent demonstration
+- [x] One hundred deterministic replay executions with identical commitments
+- [x] Two independent simulated validator identities and CRE quorum gate
+- [x] Monad lifecycle and Envio projection proof with explicit local mode
+- [x] Agent B attack containment and legitimate-control preservation
+- [x] Safe demo-only reset command
+- [x] Live demo, degraded-service, and emergency rollback runbooks
+- [x] npm package boundary, ordered release plan, tarball checks, and trusted-publishing design
+- [x] Dadieng landing page and SDK documentation derived from the supplied design
+- [x] Private operator console and landing-page deployments
+- [x] Security policy and honest submission-evidence checklist
+- [x] Five Phase 18 site and protocol-story scenarios
+- [x] One hundred and forty-six total automated tests passing across the workspace
+
+### Phase 18 gate
+
+The local final report must complete every stage, execute at least 100
+byte-stable replays, require unique validator identities, keep private content
+out of output, and prove a second agent blocks the attack without blocking its
+control. Full release checks, both production web builds, and npm tarball dry
+runs must pass. External sponsor and Monad evidence remains pending until real
+accounts, addresses, and testnet credentials are supplied.
