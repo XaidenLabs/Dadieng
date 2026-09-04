@@ -386,8 +386,32 @@ usable at desktop and mobile widths. An indexer failure must be visible and
 must never imply that derived data can authorize a protocol action. The
 production worker build and server-render tests must pass.
 
+## Phase 16 — sponsor integrations
+
+Status: **Complete locally; live sponsor proof requires owner credentials**
+
+- [x] Chainlink CRE TypeScript workflow pinned to the official 1.19.1 SDK
+- [x] CRE secret retrieval, scheduled trigger, HTTP consensus, and sanitized callback receipt
+- [x] Scoped and idempotent control-plane validation-cycle endpoint
+- [x] Deterministic replay and independent-quorum orchestration core
+- [x] Dynamic participant intent signing with address recovery
+- [x] Mera-compatible WebAuthn PRF, HKDF, AES-GCM, and cross-profile decryption path
+- [x] Envio live-read integration from Phases 14–15
+- [x] Qwen OpenAI-compatible structured generation with bounded read-only tool use
+- [x] Deterministic assertions retain final release authority
+- [x] Qwen architecture article and credential-free run instructions
+- [x] Seven Phase 16 orchestration, signing, PRF, Qwen, and API scenarios
+- [x] One hundred and thirty-seven total automated tests passing across the workspace
+
+### Phase 16 gate
+
+All sponsor adapters and the official CRE workflow must typecheck. CRE may
+coordinate but cannot run untrusted fixtures or expose private evidence. Qwen
+may propose attacks but cannot decide a release. Dynamic signatures must bind
+protocol intent. A separately created provider instance must derive the Mera
+key needed to decrypt the same envelope without a persisted key.
+
 ## Later phases
 
-- Phase 16: sponsor integrations
 - Phase 17: external integrations
 - Phase 18: final demonstration

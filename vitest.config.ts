@@ -14,6 +14,7 @@ export default defineConfig({
       "@dadieng/policy-engine": fileURLToPath(new URL("./packages/policy-engine/src/index.ts", import.meta.url)),
       "@dadieng/receipt-sanitizer": fileURLToPath(new URL("./packages/receipt-sanitizer/src/index.ts", import.meta.url)),
       "@dadieng/sdk": fileURLToPath(new URL("./packages/sdk/src/index.ts", import.meta.url)),
+      "@dadieng/sponsor-integrations": fileURLToPath(new URL("./packages/sponsor-integrations/src/index.ts", import.meta.url)),
     },
   },
   test: {

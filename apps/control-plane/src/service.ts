@@ -15,6 +15,7 @@ import type {
   CreateDefenseVersionRequest,
   CreateReceiptRequest,
   CreateReplayRequest,
+  CreValidationCycleReceipt,
   QuarantineDefenseVersionRequest,
   SubmitValidatorAttestationRequest,
 } from "./contracts.js";
@@ -37,6 +38,7 @@ export interface ControlPlaneRuntime {
 }
 
 export type ReplayExecutor = (bundle: DefenseBundle, request: CreateReplayRequest) => ReplayReport;
+export type CreCycleRunner = (principal: ApiPrincipal) => Promise<CreValidationCycleReceipt>;
 
 export interface ValidationNetwork {
   chainId: number;
@@ -76,7 +78,15 @@ export class ControlPlaneService {
     private readonly validationNetwork?: ValidationNetwork,
     private readonly resolveValidatorIdentity?: (principal: ApiPrincipal) => ValidatorIdentity | undefined,
     readonly manifestPublisher?: StableManifestPublisher,
+    private readonly creCycleRunner?: CreCycleRunner,
   ) {}
+
+  async runCreValidationCycle(principal: ApiPrincipal): Promise<CreValidationCycleReceipt> {
+    if (!this.creCycleRunner) {
+      return { cycleId: this.runtime.createId(), status: "idle", reportHashes: [] };
+    }
+    return this.creCycleRunner(principal);
+  }
 
   async checkHealth(): Promise<void> {
     try {

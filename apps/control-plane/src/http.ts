@@ -11,6 +11,7 @@ import {
   createReplayRequestSchema,
   quarantineDefenseVersionRequestSchema,
   submitValidatorAttestationRequestSchema,
+  creValidationCycleRequestSchema,
 } from "./contracts.js";
 import { ApiProblem, type ProblemDetails } from "./errors.js";
 import type { StoredHttpResponse } from "./repository.js";
@@ -308,6 +309,12 @@ export class ControlPlaneHttpApp {
         return await this.write(request, requestId, "validators:write", submitValidatorAttestationRequestSchema, async (principal, input) => ({
           status: 202,
           body: await this.service.submitValidatorAttestation(principal, input),
+        }));
+      }
+      if (request.method === "POST" && path === "/v1/cre/validation-cycle") {
+        return await this.write(request, requestId, "cre:write", creValidationCycleRequestSchema, async (principal) => ({
+          status: 200,
+          body: await this.service.runCreValidationCycle(principal),
         }));
       }
 

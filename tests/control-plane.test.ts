@@ -124,6 +124,15 @@ afterEach(async () => {
 });
 
 describe("Dadieng control-plane API", () => {
+  it("accepts an idempotent Chainlink CRE cycle callback without exposing private evidence", async () => {
+    const { app } = createHarness(["cre:write"]);
+    const result = await post(app, "/v1/cre/validation-cycle", { network: "monad-testnet", coordinator: "chainlink-cre" }, "cre-cycle-1");
+    expect(result.status).toBe(200);
+    const body = await result.json() as Record<string, unknown>;
+    expect(body).toMatchObject({ status: "idle", reportHashes: [] });
+    expect(JSON.stringify(body)).not.toMatch(/prompt|evidence|credential|secret/i);
+  });
+
   it("returns a request ID on the health endpoint", async () => {
     const { app } = createHarness();
     const response = await app.handle(new Request("http://dadieng.local/health"));

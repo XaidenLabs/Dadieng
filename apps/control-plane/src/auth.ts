@@ -5,6 +5,7 @@ export type ApiScope =
   | "receipts:write"
   | "defenses:write"
   | "safety:write"
+  | "cre:write"
   | "replays:write"
   | "validators:read"
   | "validators:write";

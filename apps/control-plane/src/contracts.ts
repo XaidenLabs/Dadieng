@@ -60,6 +60,17 @@ export const submitValidatorAttestationRequestSchema = z.object({
   transactionHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
 });
 
+export const creValidationCycleRequestSchema = z.object({
+  network: z.literal("monad-testnet"),
+  coordinator: z.literal("chainlink-cre"),
+}).strict();
+
+export const creValidationCycleReceiptSchema = z.object({
+  cycleId: publicIdentifierSchema,
+  status: z.enum(["idle", "replaying", "awaiting-attestations", "submitted"]),
+  reportHashes: z.array(z.string().regex(/^sha256:[a-f0-9]{64}$/)).max(32),
+});
+
 export type CreateReceiptRequest = z.infer<typeof createReceiptRequestSchema>;
 export type CreateDefenseRequest = z.infer<typeof createDefenseRequestSchema>;
 export type CreateDefenseVersionRequest = z.infer<typeof createDefenseVersionRequestSchema>;
@@ -67,3 +78,5 @@ export type QuarantineDefenseVersionRequest = z.infer<typeof quarantineDefenseVe
 export type CreateReplayRequest = z.infer<typeof createReplayRequestSchema>;
 export type ClaimValidationJobRequest = z.infer<typeof claimValidationJobRequestSchema>;
 export type SubmitValidatorAttestationRequest = z.infer<typeof submitValidatorAttestationRequestSchema>;
+export type CreValidationCycleRequest = z.infer<typeof creValidationCycleRequestSchema>;
+export type CreValidationCycleReceipt = z.infer<typeof creValidationCycleReceiptSchema>;
