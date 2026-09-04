@@ -16,7 +16,7 @@ The server binds to `127.0.0.1:3001` by default. Set `PORT` to use another local
 
 Every write requires `Authorization: Bearer <key>`, the corresponding scope, `Content-Type: application/json`, and an `Idempotency-Key`. Errors use `application/problem+json`, and every response carries a `requestId`.
 
-## Phase 7 endpoints
+## API endpoints
 
 | Method | Path | Access | Purpose |
 | --- | --- | --- | --- |
@@ -28,8 +28,12 @@ Every write requires `Authorization: Bearer <key>`, the corresponding scope, `Co
 | `POST` | `/v1/replays` | `replays:write` | Queue a deterministic replay against an exact version |
 | `GET` | `/v1/replays/{id}` | Public, rate-limited | Read replay state and its verified report when complete |
 | `GET` | `/v1/operations/{id}` | Public, rate-limited | Read a chain operation's stage, hash, confirmations, and safe-retry state |
+| `GET` | `/v1/validators/jobs` | `validators:read` | List open or validator-owned independent validation jobs |
+| `POST` | `/v1/validators/jobs/{id}/claim` | `validators:write` | Claim a validation job for 30 minutes |
+| `POST` | `/v1/attestations` | `validators:write` | Verify and record an independently signed report and Monad transaction hash |
+| `GET` | `/v1/attestations/{id}` | Public, rate-limited | Read a submitted attestation and its privacy-safe report |
 
-Attestation, channel, usage, and approval route families are reserved and return a clear `501` response until their planned phases.
+Channel, usage, and approval route families are reserved and return a clear `501` response until their planned phases.
 
 ## Storage boundary
 
@@ -58,3 +62,9 @@ The server health route checks both the database and object-storage root. It ret
 Set the Monad RPC, dedicated signer key, deployed contract addresses, ERC-8004 agent ID, and confirmation threshold shown in `.env.example` to enable Phase 10. Configuration is all-or-nothing; partial chain configuration stops startup instead of silently dropping requested commitments.
 
 When `publishCommitment` is true, receipt intake requires the authenticated subject's configured ERC-8004 identity and returns a durable pending operation ID. The background worker persists signed bytes before broadcast, rebroadcasts the same transaction after ambiguous RPC failures, waits for the configured confirmations, and exposes only sanitized public status. Chain writes are serialized for the single MVP signer to prevent nonce collisions across server instances.
+
+## Independent validation
+
+Completed canonical replays create validation jobs when Monad is configured. A validator API identity must map to a distinct ERC-8004 agent ID and wallet address. The claim endpoint binds both values to an expiring job lease.
+
+The validator downloads only the public Defense Module bundle and declared replay profile. Submission requires a new replay report, a wallet signature covering every attestation field, and the validator's Monad transaction hash. The API rejects the canonical control-plane report, mismatched artifact commitments, self-attestation, stale claims, and signatures from another wallet.

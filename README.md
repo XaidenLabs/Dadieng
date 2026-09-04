@@ -37,6 +37,7 @@ pnpm api:start
 - `packages/replay-engine`: deterministic attack/control execution and verifiable replay reports.
 - `packages/contracts-client`: typed Monad calldata, durable transaction coordination, signing, retry, and confirmation handling.
 - `apps/control-plane`: authenticated HTTP API with Postgres metadata and content-addressed encrypted-evidence storage.
+- `apps/validator-cli`: independent job claiming, Monad commitment verification, replay, signing, and validator-wallet submission.
 - `contracts`: immutable Monad registry, independent validation, usage commitment, and reward contracts.
 - `examples/mcp-security-demo`: vulnerable and protected executions of the same tool result.
 - `defenses/mcp-boundary`: committed reference bundle with artifact, manifest, suite, and SBOM.

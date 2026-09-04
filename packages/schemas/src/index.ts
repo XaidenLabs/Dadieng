@@ -358,6 +358,24 @@ export const validatorAttestationSchema = z.object({
   signature: z.string().min(1),
 });
 
+export function validatorAttestationSigningMessage(
+  attestation: Omit<ValidatorAttestation, "signature">,
+): string {
+  return [
+    DADIENG_ATTESTATION_SCHEMA_VERSION,
+    `attestationId=${attestation.attestationId}`,
+    `validatorAgentId=${attestation.validatorAgentId}`,
+    `chainId=${attestation.chainId}`,
+    `registryAddress=${attestation.registryAddress.toLowerCase()}`,
+    `defenseVersionId=${attestation.defenseVersionId}`,
+    `artifactHash=${attestation.artifactHash}`,
+    `suiteHash=${attestation.suiteHash}`,
+    `reportHash=${attestation.reportHash}`,
+    `passed=${attestation.passed}`,
+    `signedAt=${attestation.signedAt}`,
+  ].join("\n");
+}
+
 export const stableManifestSchema = z.object({
   schemaVersion: z.literal(DADIENG_MANIFEST_SCHEMA_VERSION),
   channel: z.string().min(1),

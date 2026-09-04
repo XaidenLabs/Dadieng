@@ -6,8 +6,10 @@ import { requireScope } from "./auth.js";
 import {
   createDefenseRequestSchema,
   createDefenseVersionRequestSchema,
+  claimValidationJobRequestSchema,
   createReceiptRequestSchema,
   createReplayRequestSchema,
+  submitValidatorAttestationRequestSchema,
 } from "./contracts.js";
 import { ApiProblem, type ProblemDetails } from "./errors.js";
 import type { StoredHttpResponse } from "./repository.js";
@@ -201,6 +203,25 @@ export class ControlPlaneHttpApp {
         }, requestId);
       }
 
+      const publicAttestationMatch = path.match(/^\/v1\/attestations\/([A-Za-z0-9._:-]+)$/);
+      if (request.method === "GET" && publicAttestationMatch?.[1]) {
+        return jsonResponse({
+          status: 200,
+          body: await this.service.getPublicAttestation(publicAttestationMatch[1]),
+          headers: { "cache-control": "public, max-age=60" },
+        }, requestId);
+      }
+
+      if (request.method === "GET" && path === "/v1/validators/jobs") {
+        const principal = this.authenticator.authenticate(request.headers.get("authorization"));
+        requireScope(principal, "validators:read");
+        return jsonResponse({
+          status: 200,
+          body: { jobs: await this.service.listValidationJobs(principal) },
+          headers: { "cache-control": "no-store" },
+        }, requestId);
+      }
+
       if (request.method === "POST" && path === "/v1/receipts") {
         return await this.write(request, requestId, "receipts:write", createReceiptRequestSchema, async (principal, input) => {
           const result = await this.service.createReceipt(principal, input);
@@ -235,7 +256,21 @@ export class ControlPlaneHttpApp {
         });
       }
 
-      if (path.startsWith("/v1/attestations") || path.startsWith("/v1/channels/")
+      const validationClaimMatch = path.match(/^\/v1\/validators\/jobs\/([A-Za-z0-9._:-]+)\/claim$/);
+      if (request.method === "POST" && validationClaimMatch?.[1]) {
+        return await this.write(request, requestId, "validators:write", claimValidationJobRequestSchema, async (principal) => ({
+          status: 200,
+          body: { job: await this.service.claimValidationJob(principal, validationClaimMatch[1]!) },
+        }));
+      }
+      if (request.method === "POST" && path === "/v1/attestations") {
+        return await this.write(request, requestId, "validators:write", submitValidatorAttestationRequestSchema, async (principal, input) => ({
+          status: 202,
+          body: await this.service.submitValidatorAttestation(principal, input),
+        }));
+      }
+
+      if (path.startsWith("/v1/channels/")
         || path.startsWith("/v1/usage/") || path.startsWith("/v1/approvals")) {
         throw new ApiProblem(501, "phase-not-implemented", "Endpoint not implemented", "This endpoint belongs to a later Dadieng build phase.");
       }

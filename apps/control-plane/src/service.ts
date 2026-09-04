@@ -1,15 +1,21 @@
 import { randomUUID } from "node:crypto";
-import { ChainOperationCoordinator, sha256Commitment, type ChainOperationRecord } from "@dadieng/contracts-client";
+import { ChainOperationCoordinator, defenseVersionKey, sha256Commitment, type ChainOperationRecord } from "@dadieng/contracts-client";
 import { canonicalJson, contentHash, verifyDefenseBundle, type DefenseBundle } from "@dadieng/defense-module";
 import { assertPublicReceiptSafe, verifyEvidenceCommitment } from "@dadieng/receipt-sanitizer";
 import { runReplay, verifyReplayReport } from "@dadieng/replay-engine";
-import { encryptedThreatEvidenceSchema, type ReplayReport } from "@dadieng/schemas";
+import {
+  encryptedThreatEvidenceSchema,
+  validatorAttestationSigningMessage,
+  type ReplayReport,
+} from "@dadieng/schemas";
+import { getAddress, recoverMessageAddress } from "viem";
 import type { ApiPrincipal } from "./auth.js";
 import type {
   CreateDefenseRequest,
   CreateDefenseVersionRequest,
   CreateReceiptRequest,
   CreateReplayRequest,
+  SubmitValidatorAttestationRequest,
 } from "./contracts.js";
 import { ApiProblem } from "./errors.js";
 import { InMemoryPrivateObjectStore, type PrivateObjectStore } from "./object-store.js";
@@ -19,6 +25,7 @@ import type {
   DefenseVersionRecord,
   ReceiptRecord,
   ReplayJobRecord,
+  ValidationJobRecord,
 } from "./repository.js";
 import { RepositoryConflictError } from "./repository.js";
 
@@ -28,6 +35,17 @@ export interface ControlPlaneRuntime {
 }
 
 export type ReplayExecutor = (bundle: DefenseBundle, request: CreateReplayRequest) => ReplayReport;
+
+export interface ValidationNetwork {
+  chainId: number;
+  registryAddress: `0x${string}`;
+  validationAddress: `0x${string}`;
+}
+
+export interface ValidatorIdentity {
+  agentId: string;
+  address: `0x${string}`;
+}
 
 const defaultRuntime: ControlPlaneRuntime = {
   createId: randomUUID,
@@ -53,6 +71,8 @@ export class ControlPlaneService {
     readonly objectStore: PrivateObjectStore = new InMemoryPrivateObjectStore(),
     readonly chainOperations?: ChainOperationCoordinator,
     private readonly resolveChainIdentity?: (principal: ApiPrincipal) => string | undefined,
+    private readonly validationNetwork?: ValidationNetwork,
+    private readonly resolveValidatorIdentity?: (principal: ApiPrincipal) => ValidatorIdentity | undefined,
   ) {}
 
   async checkHealth(): Promise<void> {
@@ -240,10 +260,135 @@ export class ControlPlaneService {
       job.report = report;
       job.updatedAt = this.runtime.now();
       await this.repository.saveReplay(job);
+      if (this.validationNetwork) {
+        const now = this.runtime.now();
+        await this.repository.saveValidationJob({
+          jobId: this.runtime.createId(),
+          tenantId: job.tenantId,
+          replayId: job.replayId,
+          defenseVersionId: job.request.defenseVersionId,
+          versionKey: defenseVersionKey(version.bundle.manifest.defenseId, version.bundle.manifest.version),
+          chainId: this.validationNetwork.chainId,
+          registryAddress: this.validationNetwork.registryAddress,
+          validationAddress: this.validationNetwork.validationAddress,
+          bundle: version.bundle,
+          environment: job.request.environment,
+          ...(job.request.thresholds ? { thresholds: job.request.thresholds } : {}),
+          canonicalReportHash: report.reportHash,
+          status: "open",
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
       return job;
     } catch {
       return this.failReplay(job, "REPLAY_EXECUTION_FAILED");
     }
+  }
+
+  async listValidationJobs(principal: ApiPrincipal) {
+    const jobs = await this.repository.listValidationJobs(principal.tenantId, principal.subject, this.runtime.now());
+    return jobs.map((job) => this.publicValidationJob(job, job.claimedBy === principal.subject));
+  }
+
+  async claimValidationJob(principal: ApiPrincipal, jobId: string) {
+    const identity = this.resolveValidatorIdentity?.(principal);
+    if (!identity) {
+      throw new ApiProblem(403, "validator-identity-required", "Validator identity required", "The authenticated subject has no registered validator identity.");
+    }
+    const job = await this.repository.getValidationJob(jobId);
+    if (!job || job.tenantId !== principal.tenantId) {
+      throw new ApiProblem(404, "validation-job-not-found", "Validation job not found", "No validation job exists for this tenant and ID.");
+    }
+    if (job.bundle.manifest.authorAgentId === identity.agentId) {
+      throw new ApiProblem(403, "self-attestation-forbidden", "Self attestation forbidden", "A defense author cannot validate their own version.");
+    }
+    const now = this.runtime.now();
+    const claimed = await this.repository.claimValidationJob(
+      jobId,
+      principal.tenantId,
+      principal.subject,
+      identity.agentId,
+      getAddress(identity.address),
+      now,
+      new Date(Date.parse(now) + 30 * 60_000).toISOString(),
+    );
+    if (!claimed) {
+      throw new ApiProblem(409, "validation-job-unavailable", "Validation job unavailable", "Another validator currently owns this job claim.");
+    }
+    return this.publicValidationJob(claimed, true);
+  }
+
+  async submitValidatorAttestation(principal: ApiPrincipal, input: SubmitValidatorAttestationRequest) {
+    const job = await this.repository.getValidationJob(input.jobId);
+    if (!job || job.tenantId !== principal.tenantId) {
+      throw new ApiProblem(404, "validation-job-not-found", "Validation job not found", "No validation job exists for this tenant and ID.");
+    }
+    if (job.status !== "claimed" || job.claimedBy !== principal.subject || !job.validatorAddress || !job.validatorAgentId) {
+      throw new ApiProblem(409, "validation-job-not-claimed", "Validation job not claimed", "The authenticated validator does not own this job claim.");
+    }
+    if (!job.claimExpiresAt || job.claimExpiresAt <= this.runtime.now()) {
+      throw new ApiProblem(409, "validation-claim-expired", "Validation claim expired", "Claim the validation job again before submitting an attestation.");
+    }
+    let report: ReplayReport;
+    try {
+      report = verifyReplayReport(input.report, job.bundle);
+    } catch {
+      throw new ApiProblem(422, "invalid-independent-report", "Invalid independent report", "The report or its artifact commitments could not be verified.");
+    }
+    if (report.reportHash === job.canonicalReportHash) {
+      throw new ApiProblem(422, "non-independent-report", "Non independent report", "Validators must produce their own replay report instead of signing the canonical result.");
+    }
+    const attestation = input.attestation;
+    if (attestation.validatorAgentId !== job.validatorAgentId
+      || attestation.chainId !== job.chainId
+      || attestation.registryAddress.toLowerCase() !== job.registryAddress.toLowerCase()
+      || attestation.defenseVersionId !== job.defenseVersionId
+      || attestation.artifactHash !== job.bundle.manifest.artifactHash
+      || attestation.suiteHash !== job.bundle.manifest.suiteHash
+      || attestation.reportHash !== report.reportHash
+      || attestation.passed !== report.releaseEligible) {
+      throw new ApiProblem(422, "attestation-mismatch", "Attestation mismatch", "The signed attestation does not match the claimed job and independent report.");
+    }
+    const signedAt = Date.parse(attestation.signedAt);
+    const now = Date.parse(this.runtime.now());
+    if (signedAt < Date.parse(job.updatedAt) || signedAt > now + 5 * 60_000) {
+      throw new ApiProblem(422, "invalid-attestation-time", "Invalid attestation time", "The attestation must be signed after the claim and cannot be more than five minutes in the future.");
+    }
+    if (Date.parse(report.startedAt) < Date.parse(job.updatedAt) || Date.parse(report.completedAt) > signedAt) {
+      throw new ApiProblem(422, "invalid-independent-report-time", "Invalid independent report time", "The independent replay must run after the validator claims the job and finish before signing.");
+    }
+    const { signature, ...unsigned } = attestation;
+    let signer: `0x${string}`;
+    try {
+      signer = await recoverMessageAddress({ message: validatorAttestationSigningMessage(unsigned), signature: signature as `0x${string}` });
+    } catch {
+      throw new ApiProblem(422, "invalid-attestation-signature", "Invalid attestation signature", "The attestation signature could not be recovered.");
+    }
+    if (signer.toLowerCase() !== job.validatorAddress.toLowerCase()) {
+      throw new ApiProblem(403, "validator-signature-mismatch", "Validator signature mismatch", "The attestation was not signed by the claimed validator wallet.");
+    }
+    const completed: ValidationJobRecord = {
+      ...job,
+      status: "submitted",
+      report,
+      attestation,
+      transactionHash: input.transactionHash as `0x${string}`,
+      updatedAt: new Date(now).toISOString(),
+    };
+    delete completed.claimExpiresAt;
+    if (!await this.repository.completeValidationJob(completed, principal.subject)) {
+      throw new ApiProblem(409, "validation-job-conflict", "Validation job conflict", "The job claim changed before the attestation was recorded.");
+    }
+    return { jobId: job.jobId, attestationId: attestation.attestationId, status: "submitted" as const, transactionHash: input.transactionHash };
+  }
+
+  async getPublicAttestation(attestationId: string) {
+    const match = await this.repository.getValidationJobByAttestationId(attestationId);
+    if (!match?.attestation || !match.report) {
+      throw new ApiProblem(404, "attestation-not-found", "Attestation not found", "No submitted attestation exists for this ID.");
+    }
+    return { attestation: match.attestation, report: match.report, transactionHash: match.transactionHash };
   }
 
   async purgeEvidenceBefore(cutoff: string, limit = 100): Promise<number> {
@@ -316,6 +461,24 @@ export class ControlPlaneService {
       errorCode: operation.errorCode ?? null,
       updatedAt: operation.updatedAt,
       retrySafe: operation.status !== "confirmed" && operation.status !== "failed",
+    };
+  }
+
+  private publicValidationJob(job: ValidationJobRecord, includeClaim: boolean) {
+    return {
+      jobId: job.jobId,
+      defenseVersionId: job.defenseVersionId,
+      versionKey: job.versionKey,
+      chainId: job.chainId,
+      registryAddress: job.registryAddress,
+      validationAddress: job.validationAddress,
+      bundle: job.bundle,
+      environment: job.environment,
+      ...(job.thresholds ? { thresholds: job.thresholds } : {}),
+      status: includeClaim ? job.status : "open",
+      ...(includeClaim && job.validatorAgentId ? { validatorAgentId: job.validatorAgentId } : {}),
+      ...(includeClaim && job.validatorAddress ? { validatorAddress: job.validatorAddress } : {}),
+      ...(includeClaim && job.claimExpiresAt ? { claimExpiresAt: job.claimExpiresAt } : {}),
     };
   }
 }

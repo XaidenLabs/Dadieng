@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
+import { getAddress, isAddress, zeroAddress } from "viem";
 import {
   ChainOperationCoordinator,
   createViemMonadTransactionAdapter,
@@ -45,6 +46,25 @@ if (configuredChainValues !== 0 && configuredChainValues !== Object.keys(chainEn
 if (chainEnvironment.agentId && !/^[1-9]\d*$/.test(chainEnvironment.agentId)) {
   throw new Error("DADIENG_ERC8004_AGENT_ID must be a positive decimal integer");
 }
+const chainIdValue = process.env.MONAD_CHAIN_ID ?? "10143";
+if (!/^[1-9]\d*$/.test(chainIdValue) || !Number.isSafeInteger(Number(chainIdValue))) {
+  throw new Error("MONAD_CHAIN_ID must be a positive safe integer");
+}
+const chainId = Number(chainIdValue);
+const validatorEnvironment = {
+  agentId: process.env.DADIENG_VALIDATOR_ERC8004_AGENT_ID,
+  address: process.env.DADIENG_VALIDATOR_ADDRESS,
+};
+const configuredValidatorValues = Object.values(validatorEnvironment).filter(Boolean).length;
+if (configuredValidatorValues !== 0 && configuredValidatorValues !== 2) {
+  throw new Error("Validator configuration must provide both the ERC-8004 agent ID and wallet address");
+}
+if (validatorEnvironment.agentId && !/^[1-9]\d*$/.test(validatorEnvironment.agentId)) {
+  throw new Error("DADIENG_VALIDATOR_ERC8004_AGENT_ID must be a positive decimal integer");
+}
+if (validatorEnvironment.address && (!isAddress(validatorEnvironment.address) || validatorEnvironment.address.toLowerCase() === zeroAddress)) {
+  throw new Error("DADIENG_VALIDATOR_ADDRESS must be a valid nonzero EVM address");
+}
 const chainOperations = configuredChainValues === Object.keys(chainEnvironment).length
   ? new ChainOperationCoordinator(
       repository,
@@ -54,6 +74,7 @@ const chainOperations = configuredChainValues === Object.keys(chainEnvironment).
         registry: chainEnvironment.registry! as DadiengContractAddresses["registry"],
         validation: chainEnvironment.validation! as DadiengContractAddresses["validation"],
         rewards: chainEnvironment.rewards! as DadiengContractAddresses["rewards"],
+        chainId,
         requiredConfirmations: (() => {
           const value = process.env.DADIENG_CHAIN_CONFIRMATIONS ?? "2";
           if (!/^[1-9]\d*$/.test(value)) throw new Error("DADIENG_CHAIN_CONFIRMATIONS must be a positive integer");
@@ -70,13 +91,22 @@ const service = new ControlPlaneService(
   objectStore,
   chainOperations,
   chainOperations ? (principal) => principal.subject === "local-agent" ? chainEnvironment.agentId : undefined : undefined,
+  chainOperations ? {
+    chainId,
+    registryAddress: chainEnvironment.registry! as `0x${string}`,
+    validationAddress: chainEnvironment.validation! as `0x${string}`,
+  } : undefined,
+  configuredValidatorValues === 2 ? (principal) => principal.subject === "local-agent" ? {
+    agentId: validatorEnvironment.agentId!,
+    address: getAddress(validatorEnvironment.address!),
+  } : undefined : undefined,
 );
 const authenticator = new StaticApiKeyAuthenticator([{
   token: apiKey,
   principal: {
     subject: "local-agent",
     tenantId: "local-tenant",
-    scopes: ["receipts:write", "defenses:write", "replays:write"],
+    scopes: ["receipts:write", "defenses:write", "replays:write", "validators:read", "validators:write"],
   },
 }]);
 const server = createControlPlaneServer(new ControlPlaneHttpApp(service, authenticator));

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { DataType, newDb } from "pg-mem";
 import { afterEach, describe, expect, it } from "vitest";
 import { canonicalJson } from "@dadieng/defense-module";
+import { createMcpBoundaryBundle } from "@dadieng/defense-module/mcp-boundary";
 import type { ChainOperationRecord } from "@dadieng/contracts-client";
 import {
   ControlPlaneService,
@@ -77,9 +78,10 @@ describe("Phase 8 persistence boundaries", () => {
     expect(migrations.rows).toEqual([
       { version: "0001_control_plane" },
       { version: "0002_chain_operations" },
+      { version: "0003_validation_jobs" },
     ]);
     expect(tables.rows.map((row) => row.table_name)).toEqual(expect.arrayContaining([
-      "threat_receipts", "defenses", "defense_versions", "replay_runs", "idempotency_keys", "chain_operations",
+      "threat_receipts", "defenses", "defense_versions", "replay_runs", "idempotency_keys", "chain_operations", "validation_jobs",
     ]));
     await pool.end();
   });
@@ -282,6 +284,66 @@ describe("Phase 8 persistence boundaries", () => {
 
     const afterRestart = await new PostgresControlPlaneRepository(pool).getChainOperation(operation.operationId);
     expect(afterRestart).toMatchObject({ status: "prepared", attempts: 1, serializedTransaction: "0x02aabb" });
+    await pool.end();
+  });
+
+  it("persists validation jobs and atomically assigns an expiring validator claim", async () => {
+    const { pool, repository } = await postgres();
+    const service = new ControlPlaneService(
+      repository,
+      runtime(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      {
+        chainId: 10_143,
+        registryAddress: "0x1111111111111111111111111111111111111111",
+        validationAddress: "0x2222222222222222222222222222222222222222",
+      },
+      (candidate) => candidate.subject.startsWith("validator") ? {
+        agentId: candidate.subject === "validator.one" ? "4001" : "4002",
+        address: candidate.subject === "validator.one"
+          ? "0x3333333333333333333333333333333333333333"
+          : "0x4444444444444444444444444444444444444444",
+      } : undefined,
+    );
+    const bundle = createMcpBoundaryBundle();
+    await service.createDefense(principal, {
+      defenseId: bundle.manifest.defenseId,
+      name: bundle.manifest.name,
+      authorAgentId: principal.subject,
+    });
+    await service.createDefenseVersion(principal, bundle.manifest.defenseId, { bundle });
+    await service.createReplay(principal, {
+      defenseVersionId: `${bundle.manifest.defenseId}@${bundle.manifest.version}`,
+      environment: {
+        imageDigest: `sha256:${"11".repeat(32)}`,
+        dependencyLockHash: `sha256:${"22".repeat(32)}`,
+        runtime: "node-22",
+        seed: 42,
+        network: "none",
+        filesystem: "read-only",
+        clock: "deterministic",
+      },
+    });
+    await service.runNextReplay();
+    const validatorOne: ApiPrincipal = {
+      subject: "validator.one", tenantId: principal.tenantId, scopes: ["validators:read", "validators:write"],
+    };
+    const validatorTwo: ApiPrincipal = {
+      subject: "validator.two", tenantId: principal.tenantId, scopes: ["validators:read", "validators:write"],
+    };
+    const [available] = await service.listValidationJobs(validatorOne);
+    if (!available) throw new Error("Expected validation job");
+    const claims = await Promise.allSettled([
+      service.claimValidationJob(validatorOne, available.jobId),
+      service.claimValidationJob(validatorTwo, available.jobId),
+    ]);
+
+    expect(claims.filter((claim) => claim.status === "fulfilled")).toHaveLength(1);
+    const restarted = new PostgresControlPlaneRepository(pool);
+    expect((await restarted.getValidationJob(available.jobId))?.status).toBe("claimed");
     await pool.end();
   });
 });

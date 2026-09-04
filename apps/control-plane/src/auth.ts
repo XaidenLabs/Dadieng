@@ -1,7 +1,12 @@
 import { timingSafeEqual } from "node:crypto";
 import { ApiProblem } from "./errors.js";
 
-export type ApiScope = "receipts:write" | "defenses:write" | "replays:write";
+export type ApiScope =
+  | "receipts:write"
+  | "defenses:write"
+  | "replays:write"
+  | "validators:read"
+  | "validators:write";
 
 export interface ApiPrincipal {
   subject: string;

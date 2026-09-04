@@ -1,4 +1,4 @@
-import { encodeFunctionData, keccak256, parseAbi, stringToHex, type Address, type Hex } from "viem";
+import { encodeAbiParameters, encodeFunctionData, keccak256, parseAbi, parseAbiParameters, stringToHex, type Address, type Hex } from "viem";
 import type { ChainOperationRequest } from "./operations.js";
 
 export interface DadiengContractAddresses {
@@ -41,6 +41,22 @@ function positiveDecimalUint(value: string, field: string): bigint {
   return parsed;
 }
 
+function semanticVersionParts(version: string): readonly [bigint, bigint, bigint] {
+  const parts = version.split(".").map((part) => decimalUint(part, "version"));
+  if (parts.length !== 3 || parts.some((part) => part > 18_446_744_073_709_551_615n)) {
+    throw new Error("version must contain three uint64 components");
+  }
+  return [parts[0]!, parts[1]!, parts[2]!];
+}
+
+export function defenseVersionKey(defenseId: string, version: string): Hex {
+  const [major, minor, patch] = semanticVersionParts(version);
+  return keccak256(encodeAbiParameters(
+    parseAbiParameters("bytes32 defenseId, uint64 major, uint64 minor, uint64 patch"),
+    [bytes32Identifier(defenseId), major, minor, patch],
+  ));
+}
+
 export function sha256Commitment(value: string): Hex {
   if (!/^sha256:[a-f0-9]{64}$/.test(value)) throw new Error("Expected a lowercase SHA-256 commitment");
   return `0x${value.slice(7)}`;
@@ -61,10 +77,7 @@ export function encodeDadiengOperation(
         }),
       };
     case "publish-version": {
-      const parts = operation.version.split(".").map((part) => decimalUint(part, "version"));
-      if (parts.length !== 3 || parts.some((part) => part > 18_446_744_073_709_551_615n)) {
-        throw new Error("version must contain three uint64 components");
-      }
+      const parts = semanticVersionParts(operation.version);
       return {
         to: addresses.registry,
         data: encodeFunctionData({

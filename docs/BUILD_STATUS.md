@@ -259,9 +259,39 @@ pnpm typecheck
 
 A requested receipt commitment must return a durable operation ID without claiming chain completion. Signed transaction bytes must exist in durable storage before broadcast and must be reused exactly after a retryable RPC failure. Concurrent workers must lease only one operation for the signer. Confirmed status requires a successful receipt at the configured confirmation depth; reverted receipts and non-retryable preparation failures must terminate with sanitized codes. Public API responses must never expose signed bytes, private keys, RPC error details, or private receipt evidence.
 
+## Phase 11 — independent validator CLI
+
+Status: **Complete**
+
+- [x] Installable `@dadieng/validator-cli` application and `dadieng-validator` command
+- [x] Login, job list, job claim, verify, and attest command flow
+- [x] Durable Postgres validation jobs with expiring atomic claims
+- [x] Exact Defense Module bundle and semantic version-key verification
+- [x] Registry and Validation contract-code checks
+- [x] Monad candidate, manifest, artifact, author, and ERC-8004 identity checks
+- [x] Independent deterministic replay with the job's declared profile and thresholds
+- [x] Canonical control-plane report rejection
+- [x] Deterministic signature message covering every attestation field
+- [x] Validator-wallet signature recovery and identity binding
+- [x] Direct Monad submission from the validator wallet
+- [x] Durable local prepared transactions with identical-byte retry behavior
+- [x] Public attestation and privacy-safe independent report endpoint
+- [x] No private receipt evidence in validation jobs or validator responses
+- [x] Owner-only local credential, report, attestation, and operation storage
+- [x] Eight Phase 11 identity, commitment, independence, persistence, and API scenarios
+- [x] One hundred and eleven total automated tests passing across the workspace
+
+### Phase 11 gate
+
+```text
+pnpm test
+pnpm typecheck
+```
+
+A validator must independently verify Monad commitments and rerun the exact public bundle before signing. The API must reject the canonical replay report, a report that does not match the bundle, a signature from another wallet, an unregistered identity, and author self-attestation. Validator keys never enter the control plane. Private incident evidence never enters a validation job. Repeating submission must reuse the persisted attestation and transaction operation.
+
 ## Later phases
 
-- Phase 11: independent validator CLI
 - Phase 12: stable manifest synchronization
 - Phase 13: quarantine and rollback
 - Phase 14: Envio indexer

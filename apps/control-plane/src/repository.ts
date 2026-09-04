@@ -7,7 +7,15 @@ import type {
   ClaimedChainOperation,
 } from "@dadieng/contracts-client";
 import type { DefenseBundle } from "@dadieng/defense-module";
-import { replayReportSchema, threatReceiptSchema, type ReplayReport, type ThreatReceipt } from "@dadieng/schemas";
+import {
+  replayEnvironmentSchema,
+  replayReportSchema,
+  threatReceiptSchema,
+  validatorAttestationSchema,
+  type ReplayReport,
+  type ThreatReceipt,
+  type ValidatorAttestation,
+} from "@dadieng/schemas";
 import { createReplayRequestSchema, defenseBundleSchema, type CreateReplayRequest } from "./contracts.js";
 
 export interface EvidenceObjectReference {
@@ -52,6 +60,31 @@ export interface ReplayJobRecord {
   updatedAt: string;
 }
 
+export interface ValidationJobRecord {
+  jobId: string;
+  tenantId: string;
+  replayId: string;
+  defenseVersionId: string;
+  versionKey: `0x${string}`;
+  chainId: number;
+  registryAddress: `0x${string}`;
+  validationAddress: `0x${string}`;
+  bundle: DefenseBundle;
+  environment: ReplayReport["environment"];
+  thresholds?: CreateReplayRequest["thresholds"];
+  canonicalReportHash: string;
+  status: "open" | "claimed" | "submitted";
+  claimedBy?: string;
+  validatorAgentId?: string;
+  validatorAddress?: `0x${string}`;
+  claimExpiresAt?: string;
+  report?: ReplayReport;
+  attestation?: ValidatorAttestation;
+  transactionHash?: `0x${string}`;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface StoredHttpResponse {
   requestHash: string;
   status: number;
@@ -82,6 +115,20 @@ export interface ControlPlaneRepository extends ChainOperationRepository {
   saveReplay(record: ReplayJobRecord): Promise<void>;
   getReplay(replayId: string): Promise<ReplayJobRecord | undefined>;
   claimNextReplay(updatedAt: string): Promise<ReplayJobRecord | undefined>;
+  saveValidationJob(record: ValidationJobRecord): Promise<boolean>;
+  getValidationJob(jobId: string): Promise<ValidationJobRecord | undefined>;
+  getValidationJobByAttestationId(attestationId: string): Promise<ValidationJobRecord | undefined>;
+  listValidationJobs(tenantId: string, subject: string, now: string): Promise<ValidationJobRecord[]>;
+  claimValidationJob(
+    jobId: string,
+    tenantId: string,
+    subject: string,
+    validatorAgentId: string,
+    validatorAddress: `0x${string}`,
+    now: string,
+    claimExpiresAt: string,
+  ): Promise<ValidationJobRecord | undefined>;
+  completeValidationJob(record: ValidationJobRecord, subject: string): Promise<boolean>;
   claimIdempotency(key: string, requestHash: string, createdAt: string): Promise<IdempotencyClaim>;
   completeIdempotency(key: string, token: string, response: StoredHttpResponse, completedAt: string): Promise<void>;
   abandonIdempotency(key: string, token: string): Promise<void>;
@@ -99,6 +146,7 @@ export class InMemoryControlPlaneRepository implements ControlPlaneRepository {
   private readonly defenses = new Map<string, DefenseRecord>();
   private readonly versions = new Map<string, DefenseVersionRecord>();
   private readonly replays = new Map<string, ReplayJobRecord>();
+  private readonly validationJobs = new Map<string, ValidationJobRecord>();
   private readonly idempotency = new Map<string, { requestHash: string; token: string; expiresAt: string; response?: StoredHttpResponse }>();
   private readonly chainOperations = new Map<string, ChainOperationRecord>();
   private readonly chainOperationDeduplication = new Map<string, string>();
@@ -141,6 +189,54 @@ export class InMemoryControlPlaneRepository implements ControlPlaneRepository {
     value.updatedAt = updatedAt;
     this.replays.set(value.replayId, copy(value));
     return copy(value);
+  }
+  async saveValidationJob(record: ValidationJobRecord) {
+    if ([...this.validationJobs.values()].some((job) => job.replayId === record.replayId)) return false;
+    this.validationJobs.set(record.jobId, copy(record));
+    return true;
+  }
+  async getValidationJob(jobId: string) {
+    const value = this.validationJobs.get(jobId);
+    return value ? copy(value) : undefined;
+  }
+  async getValidationJobByAttestationId(attestationId: string) {
+    const value = [...this.validationJobs.values()].find((job) => job.attestation?.attestationId === attestationId);
+    return value ? copy(value) : undefined;
+  }
+  async listValidationJobs(tenantId: string, subject: string, now: string) {
+    return [...this.validationJobs.values()]
+      .filter((job) => job.tenantId === tenantId && (
+        job.status === "open" || (job.status === "claimed" && (job.claimedBy === subject || job.claimExpiresAt! <= now))
+      ))
+      .sort((left, right) => left.createdAt.localeCompare(right.createdAt) || left.jobId.localeCompare(right.jobId))
+      .map(copy);
+  }
+  async claimValidationJob(
+    jobId: string,
+    tenantId: string,
+    subject: string,
+    validatorAgentId: string,
+    validatorAddress: `0x${string}`,
+    now: string,
+    claimExpiresAt: string,
+  ) {
+    const job = this.validationJobs.get(jobId);
+    if (!job || job.tenantId !== tenantId || job.status === "submitted") return undefined;
+    if (job.status === "claimed" && job.claimedBy !== subject && job.claimExpiresAt! > now) return undefined;
+    job.status = "claimed";
+    job.claimedBy = subject;
+    job.validatorAgentId = validatorAgentId;
+    job.validatorAddress = validatorAddress;
+    job.claimExpiresAt = claimExpiresAt;
+    job.updatedAt = now;
+    this.validationJobs.set(jobId, copy(job));
+    return copy(job);
+  }
+  async completeValidationJob(record: ValidationJobRecord, subject: string) {
+    const existing = this.validationJobs.get(record.jobId);
+    if (!existing || existing.status !== "claimed" || existing.claimedBy !== subject) return false;
+    this.validationJobs.set(record.jobId, copy(record));
+    return true;
   }
   async claimIdempotency(key: string, requestHash: string, createdAt: string): Promise<IdempotencyClaim> {
     const existing = this.idempotency.get(key);
@@ -243,6 +339,14 @@ interface ReplayRow extends QueryResultRow {
   replay_id: string; tenant_id: string; request: unknown; status: ReplayJobRecord["status"];
   report: unknown | null; error_code: string | null; created_at: Date | string; updated_at: Date | string;
 }
+interface ValidationJobRow extends QueryResultRow {
+  job_id: string; tenant_id: string; replay_id: string; defense_version_id: string; version_key: string;
+  chain_id: number; registry_address: string; validation_address: string; bundle: unknown; environment: unknown;
+  thresholds: unknown | null; canonical_report_hash: string; status: ValidationJobRecord["status"]; claimed_by: string | null;
+  validator_agent_id: string | null; validator_address: string | null; claim_expires_at: Date | string | null;
+  report: unknown | null; attestation: unknown | null; transaction_hash: string | null;
+  created_at: Date | string; updated_at: Date | string;
+}
 interface IdempotencyRow extends QueryResultRow {
   request_hash: string; claim_token: string; claim_expires_at: Date | string;
   response_status: number | null; response_body: unknown | null; response_headers: unknown | null;
@@ -299,6 +403,33 @@ function replayFromRow(row: ReplayRow): ReplayJobRecord {
     status: row.status,
     ...(row.report ? { report: replayReportSchema.parse(row.report) } : {}),
     ...(row.error_code ? { errorCode: row.error_code } : {}),
+    createdAt: timestamp(row.created_at),
+    updatedAt: timestamp(row.updated_at),
+  };
+}
+
+function validationJobFromRow(row: ValidationJobRow): ValidationJobRecord {
+  return {
+    jobId: row.job_id,
+    tenantId: row.tenant_id,
+    replayId: row.replay_id,
+    defenseVersionId: row.defense_version_id,
+    versionKey: row.version_key as `0x${string}`,
+    chainId: row.chain_id,
+    registryAddress: row.registry_address as `0x${string}`,
+    validationAddress: row.validation_address as `0x${string}`,
+    bundle: defenseBundleSchema.parse(row.bundle),
+    environment: replayEnvironmentSchema.parse(row.environment),
+    ...(row.thresholds ? { thresholds: createReplayRequestSchema.shape.thresholds.parse(row.thresholds) } : {}),
+    canonicalReportHash: row.canonical_report_hash,
+    status: row.status,
+    ...(row.claimed_by ? { claimedBy: row.claimed_by } : {}),
+    ...(row.validator_agent_id ? { validatorAgentId: row.validator_agent_id } : {}),
+    ...(row.validator_address ? { validatorAddress: row.validator_address as `0x${string}` } : {}),
+    ...(row.claim_expires_at ? { claimExpiresAt: timestamp(row.claim_expires_at) } : {}),
+    ...(row.report ? { report: replayReportSchema.parse(row.report) } : {}),
+    ...(row.attestation ? { attestation: validatorAttestationSchema.parse(row.attestation) } : {}),
+    ...(row.transaction_hash ? { transactionHash: row.transaction_hash as `0x${string}` } : {}),
     createdAt: timestamp(row.created_at),
     updatedAt: timestamp(row.updated_at),
   };
@@ -426,6 +557,71 @@ export class PostgresControlPlaneRepository implements ControlPlaneRepository {
         AND status = 'queued'
       RETURNING *`, [updatedAt]);
     return result.rows[0] ? replayFromRow(result.rows[0]) : undefined;
+  }
+
+  async saveValidationJob(record: ValidationJobRecord) {
+    const result = await this.database.query(`
+      INSERT INTO validation_jobs
+        (job_id, tenant_id, replay_id, defense_version_id, version_key, chain_id, registry_address,
+         validation_address, bundle, environment, thresholds, canonical_report_hash, status, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10::jsonb, $11::jsonb, $12, $13, $14, $15)
+      ON CONFLICT (replay_id) DO NOTHING RETURNING job_id`, [
+      record.jobId, record.tenantId, record.replayId, record.defenseVersionId, record.versionKey,
+      record.chainId, record.registryAddress, record.validationAddress, JSON.stringify(record.bundle),
+      JSON.stringify(record.environment), record.thresholds ? JSON.stringify(record.thresholds) : null,
+      record.canonicalReportHash, record.status, record.createdAt, record.updatedAt,
+    ]);
+    return result.rowCount === 1;
+  }
+
+  async getValidationJob(jobId: string) {
+    const result = await this.database.query<ValidationJobRow>("SELECT * FROM validation_jobs WHERE job_id = $1", [jobId]);
+    return result.rows[0] ? validationJobFromRow(result.rows[0]) : undefined;
+  }
+
+  async getValidationJobByAttestationId(attestationId: string) {
+    const result = await this.database.query<ValidationJobRow>(
+      "SELECT * FROM validation_jobs WHERE status = 'submitted'",
+    );
+    const match = result.rows.map(validationJobFromRow).find((job) => job.attestation?.attestationId === attestationId);
+    return match;
+  }
+
+  async listValidationJobs(tenantId: string, subject: string, now: string) {
+    const result = await this.database.query<ValidationJobRow>(`
+      SELECT * FROM validation_jobs WHERE tenant_id = $1 AND (
+        status = 'open' OR (status = 'claimed' AND (claimed_by = $2 OR claim_expires_at <= $3))
+      ) ORDER BY created_at, job_id`, [tenantId, subject, now]);
+    return result.rows.map(validationJobFromRow);
+  }
+
+  async claimValidationJob(
+    jobId: string,
+    tenantId: string,
+    subject: string,
+    validatorAgentId: string,
+    validatorAddress: `0x${string}`,
+    now: string,
+    claimExpiresAt: string,
+  ) {
+    const result = await this.database.query<ValidationJobRow>(`
+      UPDATE validation_jobs SET status = 'claimed', claimed_by = $3, validator_agent_id = $4,
+        validator_address = $5, claim_expires_at = $7, updated_at = $6
+      WHERE job_id = $1 AND tenant_id = $2 AND status <> 'submitted'
+        AND (status = 'open' OR claimed_by = $3 OR claim_expires_at <= $6)
+      RETURNING *`, [jobId, tenantId, subject, validatorAgentId, validatorAddress, now, claimExpiresAt]);
+    return result.rows[0] ? validationJobFromRow(result.rows[0]) : undefined;
+  }
+
+  async completeValidationJob(record: ValidationJobRecord, subject: string) {
+    const result = await this.database.query(`
+      UPDATE validation_jobs SET status = 'submitted', report = $3::jsonb, attestation = $4::jsonb,
+        transaction_hash = $5, claim_expires_at = NULL, updated_at = $6
+      WHERE job_id = $1 AND status = 'claimed' AND claimed_by = $2`, [
+      record.jobId, subject, JSON.stringify(record.report), JSON.stringify(record.attestation),
+      record.transactionHash, record.updatedAt,
+    ]);
+    return result.rowCount === 1;
   }
 
   async claimIdempotency(key: string, requestHash: string, createdAt: string): Promise<IdempotencyClaim> {

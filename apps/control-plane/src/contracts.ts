@@ -7,7 +7,9 @@ import {
   encryptedThreatEvidenceSchema,
   publicIdentifierSchema,
   replayEnvironmentSchema,
+  replayReportSchema,
   threatReceiptSchema,
+  validatorAttestationSchema,
 } from "@dadieng/schemas";
 
 export const createReceiptRequestSchema = z.object({
@@ -43,7 +45,18 @@ export const createReplayRequestSchema = z.object({
   }).optional(),
 });
 
+export const claimValidationJobRequestSchema = z.object({}).strict();
+
+export const submitValidatorAttestationRequestSchema = z.object({
+  jobId: publicIdentifierSchema,
+  report: replayReportSchema,
+  attestation: validatorAttestationSchema,
+  transactionHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
+});
+
 export type CreateReceiptRequest = z.infer<typeof createReceiptRequestSchema>;
 export type CreateDefenseRequest = z.infer<typeof createDefenseRequestSchema>;
 export type CreateDefenseVersionRequest = z.infer<typeof createDefenseVersionRequestSchema>;
 export type CreateReplayRequest = z.infer<typeof createReplayRequestSchema>;
+export type ClaimValidationJobRequest = z.infer<typeof claimValidationJobRequestSchema>;
+export type SubmitValidatorAttestationRequest = z.infer<typeof submitValidatorAttestationRequestSchema>;
