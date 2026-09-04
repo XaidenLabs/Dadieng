@@ -9,6 +9,7 @@ import {
 } from "@dadieng/contracts-client";
 import { StaticApiKeyAuthenticator } from "./auth.js";
 import { ControlPlaneHttpApp } from "./http.js";
+import { createStableVersionReader, StableManifestPublisher } from "./manifest.js";
 import { migratePostgres } from "./migrations.js";
 import { FileSystemPrivateObjectStore } from "./object-store.js";
 import { PostgresControlPlaneRepository } from "./repository.js";
@@ -84,6 +85,30 @@ const chainOperations = configuredChainValues === Object.keys(chainEnvironment).
       { createId: randomUUID, now: () => new Date().toISOString() },
     )
   : undefined;
+const manifestEnvironment = {
+  privateKey: process.env.DADIENG_MANIFEST_PRIVATE_KEY,
+  publicBaseUrl: process.env.DADIENG_PUBLIC_BASE_URL,
+};
+const configuredManifestValues = Object.values(manifestEnvironment).filter(Boolean).length;
+if (configuredManifestValues !== 0 && configuredManifestValues !== 2) {
+  throw new Error("Manifest publication requires both DADIENG_MANIFEST_PRIVATE_KEY and DADIENG_PUBLIC_BASE_URL");
+}
+if (configuredManifestValues === 2 && !chainOperations) {
+  throw new Error("Manifest publication requires complete Monad configuration");
+}
+const manifestTtlValue = process.env.DADIENG_MANIFEST_TTL_SECONDS ?? "300";
+if (!/^[1-9]\d*$/.test(manifestTtlValue)) throw new Error("DADIENG_MANIFEST_TTL_SECONDS must be a positive integer");
+const manifestPublisher = configuredManifestValues === 2 ? new StableManifestPublisher(
+  repository,
+  createStableVersionReader(chainEnvironment.rpcUrl!, chainId),
+  {
+    chainId,
+    registryAddress: chainEnvironment.registry! as `0x${string}`,
+    publicBaseUrl: manifestEnvironment.publicBaseUrl!,
+    privateKey: manifestEnvironment.privateKey! as `0x${string}`,
+    ttlSeconds: Number(manifestTtlValue),
+  },
+) : undefined;
 const service = new ControlPlaneService(
   repository,
   undefined,
@@ -100,6 +125,7 @@ const service = new ControlPlaneService(
     agentId: validatorEnvironment.agentId!,
     address: getAddress(validatorEnvironment.address!),
   } : undefined : undefined,
+  manifestPublisher,
 );
 const authenticator = new StaticApiKeyAuthenticator([{
   token: apiKey,

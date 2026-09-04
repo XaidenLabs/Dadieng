@@ -31,12 +31,12 @@ pnpm api:start
 
 - `packages/schemas`: shared event, decision, defense, and receipt contracts.
 - `packages/defense-module`: portable bundle creation, verification, loading, and suite execution.
-- `packages/sdk`: installable lifecycle interception and local enforcement SDK.
+- `packages/sdk`: lifecycle interception, signed Stable-manifest synchronization, durable last-known-good caching, and local enforcement.
 - `packages/policy-engine`: deterministic local defense evaluation.
 - `packages/receipt-sanitizer`: public receipt sanitization, deduplication, and encrypted private evidence.
 - `packages/replay-engine`: deterministic attack/control execution and verifiable replay reports.
 - `packages/contracts-client`: typed Monad calldata, durable transaction coordination, signing, retry, and confirmation handling.
-- `apps/control-plane`: authenticated HTTP API with Postgres metadata and content-addressed encrypted-evidence storage.
+- `apps/control-plane`: authenticated HTTP API, signed Stable channel publication, Postgres metadata, and content-addressed encrypted-evidence storage.
 - `apps/validator-cli`: independent job claiming, Monad commitment verification, replay, signing, and validator-wallet submission.
 - `contracts`: immutable Monad registry, independent validation, usage commitment, and reward contracts.
 - `examples/mcp-security-demo`: vulnerable and protected executions of the same tool result.

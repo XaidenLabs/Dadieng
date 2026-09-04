@@ -19,6 +19,7 @@ import type {
 } from "./contracts.js";
 import { ApiProblem } from "./errors.js";
 import { InMemoryPrivateObjectStore, type PrivateObjectStore } from "./object-store.js";
+import type { StableManifestPublisher } from "./manifest.js";
 import type {
   ControlPlaneRepository,
   DefenseRecord,
@@ -73,6 +74,7 @@ export class ControlPlaneService {
     private readonly resolveChainIdentity?: (principal: ApiPrincipal) => string | undefined,
     private readonly validationNetwork?: ValidationNetwork,
     private readonly resolveValidatorIdentity?: (principal: ApiPrincipal) => ValidatorIdentity | undefined,
+    readonly manifestPublisher?: StableManifestPublisher,
   ) {}
 
   async checkHealth(): Promise<void> {
@@ -389,6 +391,26 @@ export class ControlPlaneService {
       throw new ApiProblem(404, "attestation-not-found", "Attestation not found", "No submitted attestation exists for this ID.");
     }
     return { attestation: match.attestation, report: match.report, transactionHash: match.transactionHash };
+  }
+
+  async getStableManifest(channel: string) {
+    if (channel !== "stable") {
+      throw new ApiProblem(404, "channel-not-found", "Channel not found", "Only the stable release channel is available.");
+    }
+    if (!this.manifestPublisher) {
+      throw new ApiProblem(503, "manifest-publisher-unavailable", "Manifest publisher unavailable", "Stable manifest publication is not configured.");
+    }
+    try {
+      return await this.manifestPublisher.get(channel);
+    } catch {
+      throw new ApiProblem(503, "manifest-refresh-failed", "Manifest refresh failed", "The stable manifest could not be verified and refreshed.");
+    }
+  }
+
+  async getPublicDefenseBundle(defenseVersionId: string) {
+    const version = await this.repository.getDefenseVersion(defenseVersionId);
+    if (!version) throw new ApiProblem(404, "defense-version-not-found", "Defense version not found", "No public defense bundle exists for this version.");
+    return verifyDefenseBundle(version.bundle);
   }
 
   async purgeEvidenceBefore(cutoff: string, limit = 100): Promise<number> {

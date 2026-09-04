@@ -311,7 +311,7 @@ describe("Dadieng control-plane API", () => {
 
   it("reserves future endpoint families with an explicit phase response", async () => {
     const { app } = createHarness();
-    const response = await app.handle(new Request("http://dadieng.local/v1/channels/stable/manifest"));
+    const response = await app.handle(new Request("http://dadieng.local/v1/usage/batches"));
 
     expect(response.status).toBe(501);
     expect((await json(response)).type).toContain("phase-not-implemented");

@@ -2,6 +2,7 @@ export * from "./auth.js";
 export * from "./contracts.js";
 export * from "./errors.js";
 export * from "./http.js";
+export * from "./manifest.js";
 export * from "./migrations.js";
 export * from "./object-store.js";
 export * from "./repository.js";

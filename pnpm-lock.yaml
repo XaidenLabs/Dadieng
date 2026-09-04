@@ -201,6 +201,9 @@ importers:
 
   packages/sdk:
     dependencies:
+      '@dadieng/contracts-client':
+        specifier: workspace:*
+        version: link:../contracts-client
       '@dadieng/defense-module':
         specifier: workspace:*
         version: link:../defense-module
@@ -213,6 +216,9 @@ importers:
       '@dadieng/schemas':
         specifier: workspace:*
         version: link:../schemas
+      viem:
+        specifier: ^2.38.6
+        version: 2.56.3(typescript@5.9.3)(zod@4.5.4)
 
 packages:
 

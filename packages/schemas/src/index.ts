@@ -380,18 +380,36 @@ export const stableManifestSchema = z.object({
   schemaVersion: z.literal(DADIENG_MANIFEST_SCHEMA_VERSION),
   channel: z.string().min(1),
   generatedAt: timestampSchema,
+  expiresAt: timestampSchema,
   chainId: z.number().int().positive(),
   registryAddress: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   versions: z.array(z.object({
     defenseId: z.string().min(1),
     version: z.string().regex(/^\d+\.\d+\.\d+$/),
     artifactHash: hashSchema,
-    artifactUri: z.string().min(1),
+    artifactUri: z.string().regex(/^https?:\/\//),
     status: z.literal("stable"),
   })),
   previousManifestHash: hashSchema.nullable(),
-  signature: z.string().min(1),
+  signature: z.string().regex(/^0x[a-fA-F0-9]{130}$/),
+}).superRefine((manifest, context) => {
+  if (Date.parse(manifest.expiresAt) <= Date.parse(manifest.generatedAt)) {
+    context.addIssue({ code: "custom", path: ["expiresAt"], message: "Manifest expiry must follow generation" });
+  }
+  const identities = manifest.versions.map((version) => `${version.defenseId}@${version.version}`);
+  if (new Set(identities).size !== identities.length) {
+    context.addIssue({ code: "custom", path: ["versions"], message: "Stable manifest versions must be unique" });
+  }
+  if (new Set(manifest.versions.map((version) => version.defenseId)).size !== manifest.versions.length) {
+    context.addIssue({ code: "custom", path: ["versions"], message: "A stable manifest may activate only one version per defense" });
+  }
 });
+
+export function stableManifestSigningMessage(manifest: Omit<StableManifest, "signature">): string {
+  const versions = [...manifest.versions]
+    .sort((left, right) => left.defenseId.localeCompare(right.defenseId) || left.version.localeCompare(right.version));
+  return JSON.stringify({ ...manifest, versions });
+}
 
 export const capabilityRequestSchema = z.object({
   requestId: z.string().min(1),

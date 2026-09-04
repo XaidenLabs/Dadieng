@@ -5,6 +5,7 @@ const migrations = [
   { version: "0001_control_plane", file: "./migrations/0001_control_plane.sql" },
   { version: "0002_chain_operations", file: "./migrations/0002_chain_operations.sql" },
   { version: "0003_validation_jobs", file: "./migrations/0003_validation_jobs.sql" },
+  { version: "0004_stable_manifests", file: "./migrations/0004_stable_manifests.sql" },
 ] as const;
 
 export async function migratePostgres(pool: Pick<Pool, "query">): Promise<void> {

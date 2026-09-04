@@ -290,9 +290,39 @@ pnpm typecheck
 
 A validator must independently verify Monad commitments and rerun the exact public bundle before signing. The API must reject the canonical replay report, a report that does not match the bundle, a signature from another wallet, an unregistered identity, and author self-attestation. Validator keys never enter the control plane. Private incident evidence never enters a validation job. Repeating submission must reuse the persisted attestation and transaction operation.
 
+## Phase 12 — stable manifest synchronization
+
+Status: **Complete**
+
+- [x] Short-lived EIP-191-signed Stable manifest schema with explicit expiry
+- [x] Deterministic signing payload and trusted-signer recovery
+- [x] Monad Stable-state and manifest/artifact commitment verification before publication
+- [x] Append-only Postgres manifest lineage with fork prevention, including genesis
+- [x] Cacheable manifest endpoint with ETag revalidation
+- [x] Immutable public Defense Module bundle endpoint
+- [x] SDK network, Registry, clock-window, signature, lineage, and rollback checks
+- [x] SDK version, event-schema, and adapter compatibility checks
+- [x] Full artifact verification and local shadow-suite execution before activation
+- [x] Serialized all-or-nothing policy-engine activation
+- [x] Current and previous verified-set retention
+- [x] Atomic owner-only filesystem cache and cache-integrity verification
+- [x] Monad state revalidation for unchanged cached manifests
+- [x] Explicit open, closed, and last-known-good refresh policies
+- [x] Sanitized control-plane and SDK refresh failures
+- [x] Twelve Phase 12 publication, integrity, compatibility, continuity, and recovery scenarios
+- [x] One hundred and twenty-three total automated tests passing across the workspace
+
+### Phase 12 gate
+
+```text
+pnpm test
+pnpm typecheck
+```
+
+The control plane must never publish a version unless Monad reports it Stable with matching commitments. The SDK must verify the trusted signer, time window, network, lineage, bundle hashes, compatibility, current Monad state, and shadow suite before replacing the active rules. A partial or invalid set must never activate. Offline recovery must use only a previously verified cache according to the configured failure policy, while retaining both the current and prior known-good sets.
+
 ## Later phases
 
-- Phase 12: stable manifest synchronization
 - Phase 13: quarantine and rollback
 - Phase 14: Envio indexer
 - Phase 15: minimal operator console

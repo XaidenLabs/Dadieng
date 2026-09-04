@@ -21,6 +21,9 @@ import {
   type ThreatReceipt,
   type TrustZone,
 } from "@dadieng/schemas";
+import { ManifestSynchronizer, type ManifestSyncResult } from "./manifest-sync.js";
+
+export * from "./manifest-sync.js";
 
 export type DadiengFailMode = "open" | "closed" | "last-known-good";
 
@@ -38,6 +41,7 @@ export interface DadiengConfig {
   evidenceEncryption?: EvidenceEncryptionOptions;
   publishReporterAgentId?: boolean;
   erc8004Id?: string;
+  manifestSynchronizer?: ManifestSynchronizer;
 }
 
 export interface SourceInput {
@@ -85,7 +89,7 @@ export interface ProtectionResult {
 }
 
 export interface SdkDiagnostic {
-  type: "decision_listener_error" | "incident_listener_error" | "policy_evaluation_error" | "receipt_pipeline_error";
+  type: "decision_listener_error" | "incident_listener_error" | "policy_evaluation_error" | "receipt_pipeline_error" | "manifest_sync_error";
   message: string;
 }
 
@@ -133,12 +137,13 @@ function errorMessage(error: unknown): string {
 }
 
 export class DadiengClient {
-  private readonly config: Required<Omit<DadiengConfig, "defenses" | "runtime" | "evidenceEncryption" | "erc8004Id">> & {
+  private readonly config: Required<Omit<DadiengConfig, "defenses" | "runtime" | "evidenceEncryption" | "erc8004Id" | "manifestSynchronizer">> & {
     erc8004Id?: string;
   };
   private readonly runtime: DadiengSdkRuntime;
   private readonly evidenceEncryption: EvidenceEncryptionOptions;
-  private readonly engine: LocalPolicyEngine;
+  private engine: LocalPolicyEngine;
+  private readonly manifestSynchronizer: ManifestSynchronizer | undefined;
   private readonly decisionListeners = new Set<DecisionListener>();
   private readonly incidentListeners = new Set<IncidentListener>();
   private readonly diagnostics: SdkDiagnostic[] = [];
@@ -162,6 +167,7 @@ export class DadiengClient {
       key: randomBytes(32),
       keyId: "local-ephemeral-v1",
     };
+    this.manifestSynchronizer = config.manifestSynchronizer;
     this.engine = new LocalPolicyEngine(
       config.defenses ?? [loadDefenseBundle(createMcpBoundaryBundle())],
       this.runtime,
@@ -196,6 +202,18 @@ export class DadiengClient {
 
   getDiagnostics(): readonly SdkDiagnostic[] {
     return [...this.diagnostics];
+  }
+
+  async syncDefenses(): Promise<ManifestSyncResult> {
+    if (!this.manifestSynchronizer) throw new Error("Dadieng manifest synchronization is not configured");
+    try {
+      return await this.manifestSynchronizer.sync((defenses) => {
+        this.engine = new LocalPolicyEngine(defenses, this.runtime);
+      });
+    } catch (error) {
+      this.diagnostics.push({ type: "manifest_sync_error", message: errorMessage(error) });
+      throw error;
+    }
   }
 
   private protect(

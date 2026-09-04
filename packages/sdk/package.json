@@ -15,9 +15,11 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@dadieng/contracts-client": "workspace:*",
     "@dadieng/defense-module": "workspace:*",
     "@dadieng/policy-engine": "workspace:*",
     "@dadieng/receipt-sanitizer": "workspace:*",
-    "@dadieng/schemas": "workspace:*"
+    "@dadieng/schemas": "workspace:*",
+    "viem": "^2.38.6"
   }
 }

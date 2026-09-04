@@ -10,10 +10,12 @@ import type { DefenseBundle } from "@dadieng/defense-module";
 import {
   replayEnvironmentSchema,
   replayReportSchema,
+  stableManifestSchema,
   threatReceiptSchema,
   validatorAttestationSchema,
   type ReplayReport,
   type ThreatReceipt,
+  type StableManifest,
   type ValidatorAttestation,
 } from "@dadieng/schemas";
 import { createReplayRequestSchema, defenseBundleSchema, type CreateReplayRequest } from "./contracts.js";
@@ -85,6 +87,12 @@ export interface ValidationJobRecord {
   updatedAt: string;
 }
 
+export interface StableManifestRecord {
+  manifestHash: string;
+  manifest: StableManifest;
+  createdAt: string;
+}
+
 export interface StoredHttpResponse {
   requestHash: string;
   status: number;
@@ -112,6 +120,7 @@ export interface ControlPlaneRepository extends ChainOperationRepository {
   getDefense(defenseId: string): Promise<DefenseRecord | undefined>;
   saveDefenseVersion(record: DefenseVersionRecord): Promise<boolean>;
   getDefenseVersion(defenseVersionId: string): Promise<DefenseVersionRecord | undefined>;
+  listDefenseVersions(): Promise<DefenseVersionRecord[]>;
   saveReplay(record: ReplayJobRecord): Promise<void>;
   getReplay(replayId: string): Promise<ReplayJobRecord | undefined>;
   claimNextReplay(updatedAt: string): Promise<ReplayJobRecord | undefined>;
@@ -129,6 +138,8 @@ export interface ControlPlaneRepository extends ChainOperationRepository {
     claimExpiresAt: string,
   ): Promise<ValidationJobRecord | undefined>;
   completeValidationJob(record: ValidationJobRecord, subject: string): Promise<boolean>;
+  getLatestStableManifest(channel: string): Promise<StableManifestRecord | undefined>;
+  saveStableManifest(record: StableManifestRecord): Promise<boolean>;
   claimIdempotency(key: string, requestHash: string, createdAt: string): Promise<IdempotencyClaim>;
   completeIdempotency(key: string, token: string, response: StoredHttpResponse, completedAt: string): Promise<void>;
   abandonIdempotency(key: string, token: string): Promise<void>;
@@ -147,6 +158,7 @@ export class InMemoryControlPlaneRepository implements ControlPlaneRepository {
   private readonly versions = new Map<string, DefenseVersionRecord>();
   private readonly replays = new Map<string, ReplayJobRecord>();
   private readonly validationJobs = new Map<string, ValidationJobRecord>();
+  private readonly stableManifests = new Map<string, StableManifestRecord>();
   private readonly idempotency = new Map<string, { requestHash: string; token: string; expiresAt: string; response?: StoredHttpResponse }>();
   private readonly chainOperations = new Map<string, ChainOperationRecord>();
   private readonly chainOperationDeduplication = new Map<string, string>();
@@ -180,6 +192,7 @@ export class InMemoryControlPlaneRepository implements ControlPlaneRepository {
     return true;
   }
   async getDefenseVersion(defenseVersionId: string) { const value = this.versions.get(defenseVersionId); return value ? copy(value) : undefined; }
+  async listDefenseVersions() { return [...this.versions.values()].map(copy); }
   async saveReplay(record: ReplayJobRecord) { this.replays.set(record.replayId, copy(record)); }
   async getReplay(replayId: string) { const value = this.replays.get(replayId); return value ? copy(value) : undefined; }
   async claimNextReplay(updatedAt: string) {
@@ -236,6 +249,20 @@ export class InMemoryControlPlaneRepository implements ControlPlaneRepository {
     const existing = this.validationJobs.get(record.jobId);
     if (!existing || existing.status !== "claimed" || existing.claimedBy !== subject) return false;
     this.validationJobs.set(record.jobId, copy(record));
+    return true;
+  }
+  async getLatestStableManifest(channel: string) {
+    return [...this.stableManifests.values()]
+      .filter((record) => record.manifest.channel === channel)
+      .sort((left, right) => right.manifest.generatedAt.localeCompare(left.manifest.generatedAt)
+        || right.manifestHash.localeCompare(left.manifestHash))[0];
+  }
+  async saveStableManifest(record: StableManifestRecord) {
+    if (this.stableManifests.has(record.manifestHash)) return false;
+    if ([...this.stableManifests.values()].some((item) =>
+      item.manifest.channel === record.manifest.channel
+      && item.manifest.previousManifestHash === record.manifest.previousManifestHash)) return false;
+    this.stableManifests.set(record.manifestHash, copy(record));
     return true;
   }
   async claimIdempotency(key: string, requestHash: string, createdAt: string): Promise<IdempotencyClaim> {
@@ -347,6 +374,10 @@ interface ValidationJobRow extends QueryResultRow {
   report: unknown | null; attestation: unknown | null; transaction_hash: string | null;
   created_at: Date | string; updated_at: Date | string;
 }
+interface StableManifestRow extends QueryResultRow {
+  manifest_hash: string; channel: string; previous_manifest_hash: string | null;
+  manifest: unknown; generated_at: Date | string; expires_at: Date | string; created_at: Date | string;
+}
 interface IdempotencyRow extends QueryResultRow {
   request_hash: string; claim_token: string; claim_expires_at: Date | string;
   response_status: number | null; response_body: unknown | null; response_headers: unknown | null;
@@ -432,6 +463,14 @@ function validationJobFromRow(row: ValidationJobRow): ValidationJobRecord {
     ...(row.transaction_hash ? { transactionHash: row.transaction_hash as `0x${string}` } : {}),
     createdAt: timestamp(row.created_at),
     updatedAt: timestamp(row.updated_at),
+  };
+}
+
+function stableManifestFromRow(row: StableManifestRow): StableManifestRecord {
+  return {
+    manifestHash: row.manifest_hash,
+    manifest: stableManifestSchema.parse(row.manifest),
+    createdAt: timestamp(row.created_at),
   };
 }
 
@@ -534,6 +573,11 @@ export class PostgresControlPlaneRepository implements ControlPlaneRepository {
     return result.rows[0] ? versionFromRow(result.rows[0]) : undefined;
   }
 
+  async listDefenseVersions() {
+    const result = await this.database.query<VersionRow>("SELECT * FROM defense_versions ORDER BY defense_version_id");
+    return result.rows.map(versionFromRow);
+  }
+
   async saveReplay(record: ReplayJobRecord) {
     await this.database.query(`
       INSERT INTO replay_runs (replay_id, tenant_id, request, status, report, error_code, created_at, updated_at)
@@ -622,6 +666,31 @@ export class PostgresControlPlaneRepository implements ControlPlaneRepository {
       record.transactionHash, record.updatedAt,
     ]);
     return result.rowCount === 1;
+  }
+
+  async getLatestStableManifest(channel: string) {
+    const result = await this.database.query<StableManifestRow>(`
+      SELECT * FROM stable_manifests WHERE channel = $1 ORDER BY generated_at DESC, manifest_hash DESC LIMIT 1`,
+    [channel]);
+    return result.rows[0] ? stableManifestFromRow(result.rows[0]) : undefined;
+  }
+
+  async saveStableManifest(record: StableManifestRecord) {
+    try {
+      const result = await this.database.query(`
+        INSERT INTO stable_manifests
+          (manifest_hash, channel, previous_manifest_hash, lineage_parent, manifest, generated_at, expires_at, created_at)
+        VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8)
+        ON CONFLICT (manifest_hash) DO NOTHING RETURNING manifest_hash`, [
+        record.manifestHash, record.manifest.channel, record.manifest.previousManifestHash,
+        record.manifest.previousManifestHash ?? "genesis", JSON.stringify(record.manifest),
+        record.manifest.generatedAt, record.manifest.expiresAt, record.createdAt,
+      ]);
+      return result.rowCount === 1;
+    } catch (error) {
+      if ((error as { code?: string }).code === "23505") return false;
+      throw error;
+    }
   }
 
   async claimIdempotency(key: string, requestHash: string, createdAt: string): Promise<IdempotencyClaim> {

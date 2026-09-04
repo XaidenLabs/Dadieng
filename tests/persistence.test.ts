@@ -79,9 +79,11 @@ describe("Phase 8 persistence boundaries", () => {
       { version: "0001_control_plane" },
       { version: "0002_chain_operations" },
       { version: "0003_validation_jobs" },
+      { version: "0004_stable_manifests" },
     ]);
     expect(tables.rows.map((row) => row.table_name)).toEqual(expect.arrayContaining([
       "threat_receipts", "defenses", "defense_versions", "replay_runs", "idempotency_keys", "chain_operations", "validation_jobs",
+      "stable_manifests",
     ]));
     await pool.end();
   });

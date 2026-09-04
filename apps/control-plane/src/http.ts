@@ -212,6 +212,38 @@ export class ControlPlaneHttpApp {
         }, requestId);
       }
 
+      const bundleMatch = path.match(/^\/v1\/defense-versions\/([^/]+)\/bundle$/);
+      if (request.method === "GET" && bundleMatch?.[1]) {
+        const defenseVersionId = decodeURIComponent(bundleMatch[1]);
+        const bundle = await this.service.getPublicDefenseBundle(defenseVersionId);
+        return response(200, bundle, "application/json", {
+          "cache-control": "public, max-age=31536000, immutable",
+          etag: `"${contentHash(bundle)}"`,
+          "x-request-id": requestId,
+        });
+      }
+
+      const manifestMatch = path.match(/^\/v1\/channels\/([A-Za-z0-9._:-]+)\/manifest$/);
+      if (request.method === "GET" && manifestMatch?.[1]) {
+        const record = await this.service.getStableManifest(manifestMatch[1]);
+        const etag = `"${record.manifestHash}"`;
+        if (request.headers.get("if-none-match") === etag) {
+          return new Response(null, {
+            status: 304,
+            headers: { etag, "cache-control": "public, max-age=60", "x-request-id": requestId },
+          });
+        }
+        const remainingSeconds = Math.max(0, Math.floor(
+          (Date.parse(record.manifest.expiresAt) - Date.parse(this.runtime.now())) / 1_000,
+        ));
+        return response(200, record.manifest, "application/json", {
+          "cache-control": `public, max-age=${Math.min(60, remainingSeconds)}`,
+          etag,
+          "x-dadieng-manifest-signer": this.service.manifestPublisher?.signerAddress ?? "",
+          "x-request-id": requestId,
+        });
+      }
+
       if (request.method === "GET" && path === "/v1/validators/jobs") {
         const principal = this.authenticator.authenticate(request.headers.get("authorization"));
         requireScope(principal, "validators:read");
@@ -270,8 +302,7 @@ export class ControlPlaneHttpApp {
         }));
       }
 
-      if (path.startsWith("/v1/channels/")
-        || path.startsWith("/v1/usage/") || path.startsWith("/v1/approvals")) {
+      if (path.startsWith("/v1/usage/") || path.startsWith("/v1/approvals")) {
         throw new ApiProblem(501, "phase-not-implemented", "Endpoint not implemented", "This endpoint belongs to a later Dadieng build phase.");
       }
       throw new ApiProblem(404, "route-not-found", "Route not found", "No API route matches this request.");

@@ -32,8 +32,10 @@ Every write requires `Authorization: Bearer <key>`, the corresponding scope, `Co
 | `POST` | `/v1/validators/jobs/{id}/claim` | `validators:write` | Claim a validation job for 30 minutes |
 | `POST` | `/v1/attestations` | `validators:write` | Verify and record an independently signed report and Monad transaction hash |
 | `GET` | `/v1/attestations/{id}` | Public, rate-limited | Read a submitted attestation and its privacy-safe report |
+| `GET` | `/v1/channels/stable/manifest` | Public, rate-limited | Read the short-lived signed Stable manifest |
+| `GET` | `/v1/defense-versions/{id}/bundle` | Public, rate-limited | Download an immutable content-addressed Defense Module bundle |
 
-Channel, usage, and approval route families are reserved and return a clear `501` response until their planned phases.
+Usage and approval route families are reserved and return a clear `501` response until their planned phases.
 
 ## Storage boundary
 
@@ -68,3 +70,9 @@ When `publishCommitment` is true, receipt intake requires the authenticated subj
 Completed canonical replays create validation jobs when Monad is configured. A validator API identity must map to a distinct ERC-8004 agent ID and wallet address. The claim endpoint binds both values to an expiring job lease.
 
 The validator downloads only the public Defense Module bundle and declared replay profile. Submission requires a new replay report, a wallet signature covering every attestation field, and the validator's Monad transaction hash. The API rejects the canonical control-plane report, mismatched artifact commitments, self-attestation, stale claims, and signatures from another wallet.
+
+## Stable manifest publication
+
+Set `DADIENG_MANIFEST_PRIVATE_KEY`, `DADIENG_PUBLIC_BASE_URL`, and optionally `DADIENG_MANIFEST_TTL_SECONDS` together with the complete Monad configuration. The manifest key is a dedicated off-chain signing key and should not be the transaction signer.
+
+The control plane includes only versions whose current Monad Registry state is Stable and whose on-chain commitments match the stored bundle. It signs a short-lived manifest, links it to the prior manifest hash, persists the append-only lineage, and serves it with an ETag. Bundle URLs are immutable and content-addressed. If Monad verification or signing fails, the endpoint returns a sanitized `503` rather than publishing an unverified set.
