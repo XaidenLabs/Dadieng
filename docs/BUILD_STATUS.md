@@ -189,10 +189,45 @@ Status: **Complete**
 
 Metadata must survive repository and service reconstruction. Evidence ciphertext must exist only in the private object store, verify against its public commitment, remain inaccessible across tenants, and be deletable without removing the public receipt hash. Concurrent idempotency and replay claims must have a single owner and recover safely after an abandoned lease. Migrations must be repeatable, and dependency failures must produce sanitized health responses.
 
+## Phase 9 — Monad trust contracts
+
+Status: **Complete**
+
+- [x] Three immutable deployables preserving all six logical protocol interfaces
+- [x] Defense identity, semantic-version, manifest, artifact, and replay commitments
+- [x] Enforced Draft, Candidate, Stable, Rejected, Quarantined, and Revoked lifecycle
+- [x] Complete replay commitment required before Candidate status
+- [x] Independent validator identities with one attestation per agent identity
+- [x] Author address and author agent identity excluded from their own validation threshold
+- [x] Challengeable attestations and threshold-gated finalization
+- [x] Release-manager-only promotion after finalized validation
+- [x] Public quarantine/revocation reason and evidence commitments
+- [x] Terminal revocation and constrained replacement-version references
+- [x] Sanitized threat-receipt commitments with controlled linking and resolution
+- [x] Stable-version-only usage batch roots with challenge and finalization
+- [x] Prefunded epoch allocations and reentrancy-safe native-token claims
+- [x] Publication, promotion, receipt, usage, and claim pause scopes with optional expiry
+- [x] Separation of author, validator, release, guardian, treasury, and admin powers
+- [x] One-time validation dependency configuration and no proxy/upgrade surface
+- [x] Hardhat Ignition deployment graph and Monad testnet configuration
+- [x] Fourteen on-chain integration scenarios passing
+- [x] 80.87% Solidity line coverage and 80.34% statement coverage
+- [x] Ninety-two total automated tests passing across the workspace
+
+### Phase 9 gate
+
+```text
+pnpm test
+pnpm typecheck
+pnpm --filter @dadieng/contracts exec hardhat test --coverage
+pnpm --filter @dadieng/contracts exec hardhat ignition deploy ignition/modules/DadiengProtocol.ts
+```
+
+The deployable contracts must compile under the production optimizer, remain below the EVM runtime bytecode limit, and deploy in dependency order. A version cannot become Stable without a complete replay commitment and a finalized independent-validator threshold. Revocation must remain terminal. Usage must reference a Stable version, reward commitments cannot exceed epoch funding, and emergency scopes must stop mutations without disabling public reads.
+
 ## Later phases
 
-- Phase 9: Monad contracts — **Next**
-- Phase 10: Monad transaction adapter
+- Phase 10: Monad transaction adapter — **Next**
 - Phase 11: independent validator CLI
 - Phase 12: stable manifest synchronization
 - Phase 13: quarantine and rollback

@@ -12,7 +12,8 @@
     "api:start": "pnpm --filter @dadieng/control-plane start",
     "db:migrate": "pnpm --filter @dadieng/control-plane db:migrate",
     "retention:purge": "pnpm --filter @dadieng/control-plane retention:purge",
-    "test": "vitest run",
+    "test": "vitest run && pnpm --filter @dadieng/contracts test",
+    "contracts:test": "pnpm --filter @dadieng/contracts test",
     "typecheck": "pnpm build && pnpm -r --if-present typecheck"
   },
   "devDependencies": {

@@ -36,6 +36,7 @@ pnpm api:start
 - `packages/receipt-sanitizer`: public receipt sanitization, deduplication, and encrypted private evidence.
 - `packages/replay-engine`: deterministic attack/control execution and verifiable replay reports.
 - `apps/control-plane`: authenticated HTTP API with Postgres metadata and content-addressed encrypted-evidence storage.
+- `contracts`: immutable Monad registry, independent validation, usage commitment, and reward contracts.
 - `examples/mcp-security-demo`: vulnerable and protected executions of the same tool result.
 - `defenses/mcp-boundary`: committed reference bundle with artifact, manifest, suite, and SBOM.
 - `replays/mcp-boundary`: committed deterministic report for the reference defense.

@@ -1,8 +1,14 @@
 node_modules/
 dist/
 coverage/
+artifacts/
+cache/
+contracts/artifacts/
+contracts/cache/
+contracts/coverage/
+contracts/ignition/deployments/
+contracts/types/
 .env
 .env.*
 !.env.example
 .DS_Store
-
