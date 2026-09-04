@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { ChainOperationCoordinator, sha256Commitment, type ChainOperationRecord } from "@dadieng/contracts-client";
 import { canonicalJson, contentHash, verifyDefenseBundle, type DefenseBundle } from "@dadieng/defense-module";
 import { assertPublicReceiptSafe, verifyEvidenceCommitment } from "@dadieng/receipt-sanitizer";
 import { runReplay, verifyReplayReport } from "@dadieng/replay-engine";
@@ -50,6 +51,8 @@ export class ControlPlaneService {
     private readonly runtime: ControlPlaneRuntime = defaultRuntime,
     private readonly replayExecutor: ReplayExecutor = defaultReplayExecutor,
     readonly objectStore: PrivateObjectStore = new InMemoryPrivateObjectStore(),
+    readonly chainOperations?: ChainOperationCoordinator,
+    private readonly resolveChainIdentity?: (principal: ApiPrincipal) => string | undefined,
   ) {}
 
   async checkHealth(): Promise<void> {
@@ -75,6 +78,19 @@ export class ControlPlaneService {
     }
     if (!evidenceMatches) {
       throw new ApiProblem(422, "evidence-commitment-mismatch", "Evidence commitment mismatch", "The encrypted evidence does not match the public receipt commitment.");
+    }
+    if (input.publishCommitment && !this.chainOperations) {
+      throw new ApiProblem(503, "chain-adapter-unavailable", "Chain adapter unavailable", "The receipt is valid, but no chain transaction adapter is configured.");
+    }
+    if (input.publishCommitment && !receipt.reporter.erc8004Id) {
+      throw new ApiProblem(422, "chain-identity-required", "Chain identity required", "An ERC-8004 reporter identity is required to publish a receipt commitment.");
+    }
+    if (input.publishCommitment) {
+      const authorizedAgentId = this.resolveChainIdentity?.(principal);
+      if (!authorizedAgentId || authorizedAgentId !== receipt.reporter.erc8004Id
+        || (receipt.reporter.agentId !== undefined && receipt.reporter.agentId !== principal.subject)) {
+        throw new ApiProblem(403, "chain-identity-mismatch", "Chain identity mismatch", "The authenticated subject is not authorized for the receipt's ERC-8004 identity.");
+      }
     }
     const storedAt = this.runtime.now();
     const evidenceBytes = Buffer.from(canonicalJson(input.encryptedEvidence));
@@ -102,7 +118,7 @@ export class ControlPlaneService {
       if (!result.created && result.record.evidenceObject?.uri !== evidenceObject.uri) {
         await this.objectStore.delete(evidenceObject.uri);
       }
-      return this.receiptResult(result.record, input.publishCommitment, !result.created);
+      return await this.receiptResult(principal, result.record, input.publishCommitment, !result.created);
     } catch (error) {
       await this.objectStore.delete(evidenceObject.uri);
       if (error instanceof RepositoryConflictError && error.conflict === "receipt-id") {
@@ -197,6 +213,20 @@ export class ControlPlaneService {
     return record;
   }
 
+  async getChainOperation(operationId: string) {
+    if (!this.chainOperations) {
+      throw new ApiProblem(503, "chain-adapter-unavailable", "Chain adapter unavailable", "No chain transaction adapter is configured.");
+    }
+    const operation = await this.chainOperations.get(operationId);
+    if (!operation) throw new ApiProblem(404, "operation-not-found", "Operation not found", "No chain operation exists for this ID.");
+    return this.publicChainOperation(operation);
+  }
+
+  async runNextChainOperation(): Promise<ChainOperationRecord | undefined> {
+    if (!this.chainOperations) return undefined;
+    return this.chainOperations.runNext();
+  }
+
   async runNextReplay(): Promise<ReplayJobRecord | undefined> {
     const job = await this.repository.claimNextReplay(this.runtime.now());
     if (!job) return undefined;
@@ -238,15 +268,54 @@ export class ControlPlaneService {
     return job;
   }
 
-  private receiptResult(record: ReceiptRecord, publishCommitment: boolean, duplicate: boolean) {
+  private async receiptResult(
+    principal: ApiPrincipal,
+    record: ReceiptRecord,
+    publishCommitment: boolean,
+    duplicate: boolean,
+  ) {
+    const operation = publishCommitment
+      ? (await this.chainOperations!.enqueue({
+          tenantId: principal.tenantId,
+          deduplicationKey: `receipt:${record.receipt.receiptId}:${contentHash(record.receipt)}`,
+          request: {
+            kind: "publish-receipt",
+            receiptId: record.receipt.receiptId,
+            receiptHash: sha256Commitment(contentHash(record.receipt)),
+            evidenceHash: sha256Commitment(record.receipt.evidence.hash),
+            attackClass: record.receipt.classification.attackClass,
+            reporterAgentId: record.receipt.reporter.erc8004Id!,
+          },
+        })).operation
+      : undefined;
     return {
       receiptId: record.receipt.receiptId,
       status: duplicate ? "duplicate" as const : "sanitized" as const,
       publicHash: contentHash(record.receipt),
       chain: {
-        status: publishCommitment ? "awaiting-adapter" as const : "not-requested" as const,
-        operationId: null,
+        status: operation
+          ? operation.status === "confirmed" ? "confirmed" as const
+            : operation.status === "failed" ? "failed" as const
+              : "pending" as const
+          : "not-requested" as const,
+        operationId: operation?.operationId ?? null,
       },
+    };
+  }
+
+  private publicChainOperation(operation: ChainOperationRecord) {
+    return {
+      operationId: operation.operationId,
+      kind: operation.request.kind,
+      status: operation.status,
+      stage: operation.status,
+      attempts: operation.attempts,
+      transactionHash: operation.transactionHash ?? operation.preparedTransactionHash ?? null,
+      confirmations: operation.confirmations ?? 0,
+      blockNumber: operation.blockNumber ?? null,
+      errorCode: operation.errorCode ?? null,
+      updatedAt: operation.updatedAt,
+      retrySafe: operation.status !== "confirmed" && operation.status !== "failed",
     };
   }
 }

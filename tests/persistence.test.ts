@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { DataType, newDb } from "pg-mem";
 import { afterEach, describe, expect, it } from "vitest";
 import { canonicalJson } from "@dadieng/defense-module";
+import type { ChainOperationRecord } from "@dadieng/contracts-client";
 import {
   ControlPlaneService,
   FileSystemPrivateObjectStore,
@@ -73,9 +74,12 @@ describe("Phase 8 persistence boundaries", () => {
 
     const migrations = await pool.query("SELECT version FROM schema_migrations");
     const tables = await pool.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");
-    expect(migrations.rows).toEqual([{ version: "0001_control_plane" }]);
+    expect(migrations.rows).toEqual([
+      { version: "0001_control_plane" },
+      { version: "0002_chain_operations" },
+    ]);
     expect(tables.rows.map((row) => row.table_name)).toEqual(expect.arrayContaining([
-      "threat_receipts", "defenses", "defense_versions", "replay_runs", "idempotency_keys",
+      "threat_receipts", "defenses", "defense_versions", "replay_runs", "idempotency_keys", "chain_operations",
     ]));
     await pool.end();
   });
@@ -229,6 +233,55 @@ describe("Phase 8 persistence boundaries", () => {
     expect((await service.createReceipt(principal, payload)).status).toBe("duplicate");
     expect((await service.getPrivateEvidence(principal, payload.receipt.receiptId)).ciphertext)
       .toBe(payload.encryptedEvidence.ciphertext);
+    await pool.end();
+  });
+
+  it("persists and exclusively claims chain operations across worker restarts", async () => {
+    const { pool, repository } = await postgres();
+    const operation: ChainOperationRecord = {
+      operationId: "operation_persistent_1",
+      deduplicationKey: "receipt:receipt_persistent_1",
+      tenantId: "tenant_alpha",
+      request: {
+        kind: "publish-receipt",
+        receiptId: "receipt_persistent_1",
+        receiptHash: `0x${"1".repeat(64)}`,
+        evidenceHash: `0x${"2".repeat(64)}`,
+        attackClass: "tool_poisoning",
+        reporterAgentId: "3001",
+      },
+      status: "queued",
+      attempts: 0,
+      nextAttemptAt: FIXED_TIME,
+      createdAt: FIXED_TIME,
+      updatedAt: FIXED_TIME,
+    };
+    expect((await repository.enqueueChainOperation(operation)).created).toBe(true);
+    expect((await repository.enqueueChainOperation({ ...operation, operationId: "duplicate" })).operation.operationId)
+      .toBe(operation.operationId);
+    await repository.enqueueChainOperation({
+      ...operation,
+      operationId: "operation_persistent_2",
+      deduplicationKey: "receipt:receipt_persistent_2",
+      request: { ...operation.request, receiptId: "receipt_persistent_2" },
+    });
+
+    const restarted = new PostgresControlPlaneRepository(pool);
+    const claims = await Promise.all([
+      repository.claimNextChainOperation(FIXED_TIME, "2026-09-04T06:00:30.000Z"),
+      restarted.claimNextChainOperation(FIXED_TIME, "2026-09-04T06:00:30.000Z"),
+    ]);
+    expect(claims.filter(Boolean)).toHaveLength(1);
+    const claim = claims.find(Boolean)!;
+    claim.operation.status = "prepared";
+    claim.operation.attempts = 1;
+    claim.operation.preparedTransactionHash = `0x${"a".repeat(64)}`;
+    claim.operation.serializedTransaction = "0x02aabb";
+    claim.operation.nextAttemptAt = "2026-09-04T06:00:05.000Z";
+    await restarted.updateClaimedChainOperation(claim.operation, claim.claimToken);
+
+    const afterRestart = await new PostgresControlPlaneRepository(pool).getChainOperation(operation.operationId);
+    expect(afterRestart).toMatchObject({ status: "prepared", attempts: 1, serializedTransaction: "0x02aabb" });
     await pool.end();
   });
 });

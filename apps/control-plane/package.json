@@ -18,6 +18,7 @@
     "start": "tsx src/start.ts"
   },
   "dependencies": {
+    "@dadieng/contracts-client": "workspace:*",
     "@dadieng/defense-module": "workspace:*",
     "@dadieng/receipt-sanitizer": "workspace:*",
     "@dadieng/replay-engine": "workspace:*",

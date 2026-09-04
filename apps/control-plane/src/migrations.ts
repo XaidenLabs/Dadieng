@@ -1,7 +1,10 @@
 import { readFile } from "node:fs/promises";
 import type { Pool } from "pg";
 
-const migrations = [{ version: "0001_control_plane", file: "./migrations/0001_control_plane.sql" }] as const;
+const migrations = [
+  { version: "0001_control_plane", file: "./migrations/0001_control_plane.sql" },
+  { version: "0002_chain_operations", file: "./migrations/0002_chain_operations.sql" },
+] as const;
 
 export async function migratePostgres(pool: Pick<Pool, "query">): Promise<void> {
   await pool.query("CREATE TABLE IF NOT EXISTS schema_migrations (version text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())");

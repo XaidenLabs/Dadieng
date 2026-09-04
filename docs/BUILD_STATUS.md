@@ -225,9 +225,42 @@ pnpm --filter @dadieng/contracts exec hardhat ignition deploy ignition/modules/D
 
 The deployable contracts must compile under the production optimizer, remain below the EVM runtime bytecode limit, and deploy in dependency order. A version cannot become Stable without a complete replay commitment and a finalized independent-validator threshold. Revocation must remain terminal. Usage must reference a Stable version, reward commitments cannot exceed epoch funding, and emergency scopes must stop mutations without disabling public reads.
 
+## Phase 10 — Monad transaction adapter
+
+Status: **Complete**
+
+- [x] Installable `@dadieng/contracts-client` workspace package
+- [x] Typed Registry, Validation, and Rewards calldata encoding
+- [x] Strict semantic-version, SHA-256 commitment, and decimal identity conversion
+- [x] Viem simulation, transaction preparation, signing, and raw broadcast adapter
+- [x] Transaction hash computed before broadcast
+- [x] Durable queued, prepared, submitted, confirmed, and failed operation states
+- [x] Signed transaction persisted before the first broadcast attempt
+- [x] Identical-byte rebroadcast after ambiguous RPC failure
+- [x] Configurable confirmation threshold and pending receipt handling
+- [x] Transaction replacement tracking and reverted-receipt classification
+- [x] Retryable transport failures separated from terminal contract failures
+- [x] One active signer lease across concurrent workers to prevent nonce collisions
+- [x] Expiring claims and restart-safe Postgres recovery
+- [x] Durable logical-operation deduplication
+- [x] Receipt publication connected to the control-plane API
+- [x] Authenticated subject bound to the published ERC-8004 identity
+- [x] Public operation-status route with no signed bytes or internal RPC errors
+- [x] All-or-nothing Monad startup configuration and background worker
+- [x] Eleven Phase 10 transaction, retry, identity, persistence, and recovery scenarios
+- [x] One hundred and three total automated tests passing across the workspace
+
+### Phase 10 gate
+
+```text
+pnpm test
+pnpm typecheck
+```
+
+A requested receipt commitment must return a durable operation ID without claiming chain completion. Signed transaction bytes must exist in durable storage before broadcast and must be reused exactly after a retryable RPC failure. Concurrent workers must lease only one operation for the signer. Confirmed status requires a successful receipt at the configured confirmation depth; reverted receipts and non-retryable preparation failures must terminate with sanitized codes. Public API responses must never expose signed bytes, private keys, RPC error details, or private receipt evidence.
+
 ## Later phases
 
-- Phase 10: Monad transaction adapter — **Next**
 - Phase 11: independent validator CLI
 - Phase 12: stable manifest synchronization
 - Phase 13: quarantine and rollback

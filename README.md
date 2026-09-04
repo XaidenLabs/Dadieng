@@ -35,6 +35,7 @@ pnpm api:start
 - `packages/policy-engine`: deterministic local defense evaluation.
 - `packages/receipt-sanitizer`: public receipt sanitization, deduplication, and encrypted private evidence.
 - `packages/replay-engine`: deterministic attack/control execution and verifiable replay reports.
+- `packages/contracts-client`: typed Monad calldata, durable transaction coordination, signing, retry, and confirmation handling.
 - `apps/control-plane`: authenticated HTTP API with Postgres metadata and content-addressed encrypted-evidence storage.
 - `contracts`: immutable Monad registry, independent validation, usage commitment, and reward contracts.
 - `examples/mcp-security-demo`: vulnerable and protected executions of the same tool result.

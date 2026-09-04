@@ -1,5 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { QueryResult, QueryResultRow } from "pg";
+import type {
+  ChainOperationRecord,
+  ChainOperationRepository,
+  ChainOperationRequest,
+  ClaimedChainOperation,
+} from "@dadieng/contracts-client";
 import type { DefenseBundle } from "@dadieng/defense-module";
 import { replayReportSchema, threatReceiptSchema, type ReplayReport, type ThreatReceipt } from "@dadieng/schemas";
 import { createReplayRequestSchema, defenseBundleSchema, type CreateReplayRequest } from "./contracts.js";
@@ -64,7 +70,7 @@ export interface ReceiptSaveResult {
   record: ReceiptRecord;
 }
 
-export interface ControlPlaneRepository {
+export interface ControlPlaneRepository extends ChainOperationRepository {
   healthCheck(): Promise<void>;
   getReceipt(receiptId: string): Promise<ReceiptRecord | undefined>;
   getReceiptForTenant(tenantId: string, receiptId: string): Promise<ReceiptRecord | undefined>;
@@ -94,6 +100,9 @@ export class InMemoryControlPlaneRepository implements ControlPlaneRepository {
   private readonly versions = new Map<string, DefenseVersionRecord>();
   private readonly replays = new Map<string, ReplayJobRecord>();
   private readonly idempotency = new Map<string, { requestHash: string; token: string; expiresAt: string; response?: StoredHttpResponse }>();
+  private readonly chainOperations = new Map<string, ChainOperationRecord>();
+  private readonly chainOperationDeduplication = new Map<string, string>();
+  private readonly chainOperationClaims = new Map<string, { token: string; expiresAt: string }>();
 
   async healthCheck(): Promise<void> {}
 
@@ -172,6 +181,41 @@ export class InMemoryControlPlaneRepository implements ControlPlaneRepository {
     delete record.evidenceObject;
     record.evidenceDeletedAt = deletedAt;
   }
+
+  async enqueueChainOperation(record: ChainOperationRecord) {
+    const existingId = this.chainOperationDeduplication.get(record.deduplicationKey);
+    if (existingId) return { created: false, operation: copy(this.chainOperations.get(existingId)!) };
+    this.chainOperations.set(record.operationId, copy(record));
+    this.chainOperationDeduplication.set(record.deduplicationKey, record.operationId);
+    return { created: true, operation: copy(record) };
+  }
+
+  async getChainOperation(operationId: string) {
+    const operation = this.chainOperations.get(operationId);
+    return operation ? copy(operation) : undefined;
+  }
+
+  async claimNextChainOperation(now: string, claimExpiresAt: string): Promise<ClaimedChainOperation | undefined> {
+    if ([...this.chainOperationClaims.values()].some((claim) => claim.expiresAt > now)) return undefined;
+    const operation = [...this.chainOperations.values()]
+      .filter((candidate) => candidate.status !== "confirmed" && candidate.status !== "failed" && candidate.nextAttemptAt <= now)
+      .sort((left, right) => left.createdAt.localeCompare(right.createdAt) || left.operationId.localeCompare(right.operationId))
+      .find((candidate) => {
+        const claim = this.chainOperationClaims.get(candidate.operationId);
+        return !claim || claim.expiresAt <= now;
+      });
+    if (!operation) return undefined;
+    const claimToken = randomUUID();
+    this.chainOperationClaims.set(operation.operationId, { token: claimToken, expiresAt: claimExpiresAt });
+    return { operation: copy(operation), claimToken };
+  }
+
+  async updateClaimedChainOperation(operation: ChainOperationRecord, claimToken: string) {
+    const claim = this.chainOperationClaims.get(operation.operationId);
+    if (!claim || claim.token !== claimToken) throw new Error("Chain operation claim update failed");
+    this.chainOperations.set(operation.operationId, copy(operation));
+    this.chainOperationClaims.delete(operation.operationId);
+  }
 }
 
 export class RepositoryConflictError extends Error {
@@ -202,6 +246,13 @@ interface ReplayRow extends QueryResultRow {
 interface IdempotencyRow extends QueryResultRow {
   request_hash: string; claim_token: string; claim_expires_at: Date | string;
   response_status: number | null; response_body: unknown | null; response_headers: unknown | null;
+}
+interface ChainOperationRow extends QueryResultRow {
+  operation_id: string; deduplication_key: string; tenant_id: string; operation_kind: ChainOperationRequest["kind"];
+  payload: ChainOperationRequest; status: ChainOperationRecord["status"]; attempts: number;
+  next_attempt_at: Date | string; prepared_transaction_hash: string | null; serialized_transaction: string | null;
+  transaction_hash: string | null; block_number: string | null; confirmations: number | null; error_code: string | null;
+  created_at: Date | string; updated_at: Date | string; claim_token: string | null; claim_expires_at: Date | string | null;
 }
 
 function timestamp(value: Date | string): string {
@@ -247,6 +298,26 @@ function replayFromRow(row: ReplayRow): ReplayJobRecord {
     request: createReplayRequestSchema.parse(row.request),
     status: row.status,
     ...(row.report ? { report: replayReportSchema.parse(row.report) } : {}),
+    ...(row.error_code ? { errorCode: row.error_code } : {}),
+    createdAt: timestamp(row.created_at),
+    updatedAt: timestamp(row.updated_at),
+  };
+}
+
+function chainOperationFromRow(row: ChainOperationRow): ChainOperationRecord {
+  return {
+    operationId: row.operation_id,
+    deduplicationKey: row.deduplication_key,
+    tenantId: row.tenant_id,
+    request: row.payload,
+    status: row.status,
+    attempts: row.attempts,
+    nextAttemptAt: timestamp(row.next_attempt_at),
+    ...(row.prepared_transaction_hash ? { preparedTransactionHash: row.prepared_transaction_hash as `0x${string}` } : {}),
+    ...(row.serialized_transaction ? { serializedTransaction: row.serialized_transaction as `0x${string}` } : {}),
+    ...(row.transaction_hash ? { transactionHash: row.transaction_hash as `0x${string}` } : {}),
+    ...(row.block_number ? { blockNumber: row.block_number } : {}),
+    ...(row.confirmations !== null ? { confirmations: row.confirmations } : {}),
     ...(row.error_code ? { errorCode: row.error_code } : {}),
     createdAt: timestamp(row.created_at),
     updatedAt: timestamp(row.updated_at),
@@ -417,5 +488,73 @@ export class PostgresControlPlaneRepository implements ControlPlaneRepository {
     await this.database.query(`
       UPDATE threat_receipts SET evidence_object_uri = NULL, evidence_size_bytes = NULL,
         evidence_stored_at = NULL, evidence_deleted_at = $2 WHERE receipt_id = $1`, [receiptId, deletedAt]);
+  }
+
+  async enqueueChainOperation(record: ChainOperationRecord) {
+    const result = await this.database.query<ChainOperationRow>(`
+      INSERT INTO chain_operations
+        (operation_id, deduplication_key, tenant_id, operation_kind, payload, status, attempts,
+         next_attempt_at, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10)
+      ON CONFLICT (deduplication_key) DO NOTHING RETURNING *`, [
+      record.operationId, record.deduplicationKey, record.tenantId, record.request.kind,
+      JSON.stringify(record.request), record.status, record.attempts, record.nextAttemptAt,
+      record.createdAt, record.updatedAt,
+    ]);
+    if (result.rows[0]) return { created: true, operation: chainOperationFromRow(result.rows[0]) };
+    const existing = await this.database.query<ChainOperationRow>(
+      "SELECT * FROM chain_operations WHERE deduplication_key = $1",
+      [record.deduplicationKey],
+    );
+    if (!existing.rows[0]) throw new Error("Chain operation deduplication could not be resolved");
+    return { created: false, operation: chainOperationFromRow(existing.rows[0]) };
+  }
+
+  async getChainOperation(operationId: string) {
+    const result = await this.database.query<ChainOperationRow>(
+      "SELECT * FROM chain_operations WHERE operation_id = $1",
+      [operationId],
+    );
+    return result.rows[0] ? chainOperationFromRow(result.rows[0]) : undefined;
+  }
+
+  async claimNextChainOperation(now: string, claimExpiresAt: string): Promise<ClaimedChainOperation | undefined> {
+    const claimToken = randomUUID();
+    try {
+      const result = await this.database.query<ChainOperationRow>(`
+        UPDATE chain_operations SET claim_token = $1, claim_expires_at = $2
+        WHERE operation_id = (
+          SELECT operation_id FROM chain_operations
+          WHERE status IN ('queued', 'prepared', 'submitted') AND next_attempt_at <= $3
+            AND (claim_token IS NULL OR claim_expires_at <= $3)
+            AND NOT EXISTS (
+              SELECT 1 FROM chain_operations active
+              WHERE active.claim_token IS NOT NULL AND active.claim_expires_at > $3
+            )
+          ORDER BY created_at, operation_id LIMIT 1
+        )
+        AND status IN ('queued', 'prepared', 'submitted')
+        AND (claim_token IS NULL OR claim_expires_at <= $3)
+        RETURNING *`, [claimToken, claimExpiresAt, now]);
+      return result.rows[0] ? { operation: chainOperationFromRow(result.rows[0]), claimToken } : undefined;
+    } catch (error) {
+      if ((error as { code?: string }).code === "23505") return undefined;
+      throw error;
+    }
+  }
+
+  async updateClaimedChainOperation(operation: ChainOperationRecord, claimToken: string) {
+    const result = await this.database.query(`
+      UPDATE chain_operations SET status = $3, attempts = $4, next_attempt_at = $5,
+        prepared_transaction_hash = $6, serialized_transaction = $7, transaction_hash = $8,
+        block_number = $9, confirmations = $10, error_code = $11, updated_at = $12,
+        claim_token = NULL, claim_expires_at = NULL
+      WHERE operation_id = $1 AND claim_token = $2`, [
+      operation.operationId, claimToken, operation.status, operation.attempts, operation.nextAttemptAt,
+      operation.preparedTransactionHash ?? null, operation.serializedTransaction ?? null,
+      operation.transactionHash ?? null, operation.blockNumber ?? null, operation.confirmations ?? null,
+      operation.errorCode ?? null, operation.updatedAt,
+    ]);
+    if (result.rowCount !== 1) throw new Error("Chain operation claim update failed");
   }
 }

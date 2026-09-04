@@ -192,6 +192,15 @@ export class ControlPlaneHttpApp {
         }, requestId);
       }
 
+      const operationMatch = path.match(/^\/v1\/operations\/([A-Za-z0-9._:-]+)$/);
+      if (request.method === "GET" && operationMatch?.[1]) {
+        return jsonResponse({
+          status: 200,
+          body: await this.service.getChainOperation(operationMatch[1]),
+          headers: { "cache-control": "no-store" },
+        }, requestId);
+      }
+
       if (request.method === "POST" && path === "/v1/receipts") {
         return await this.write(request, requestId, "receipts:write", createReceiptRequestSchema, async (principal, input) => {
           const result = await this.service.createReceipt(principal, input);
