@@ -35,6 +35,12 @@ export const createDefenseVersionRequestSchema = z.object({
   bundle: defenseBundleSchema,
 });
 
+export const quarantineDefenseVersionRequestSchema = z.object({
+  reasonCode: z.string().regex(/^[A-Za-z0-9._:-]{1,128}$/),
+  evidenceHash: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  replacementDefenseVersionId: z.string().regex(/^[A-Za-z0-9._:-]+@\d+\.\d+\.\d+$/).nullable().default(null),
+});
+
 export const createReplayRequestSchema = z.object({
   defenseVersionId: z.string().regex(/^[A-Za-z0-9._:-]+@\d+\.\d+\.\d+$/),
   environment: replayEnvironmentSchema,
@@ -57,6 +63,7 @@ export const submitValidatorAttestationRequestSchema = z.object({
 export type CreateReceiptRequest = z.infer<typeof createReceiptRequestSchema>;
 export type CreateDefenseRequest = z.infer<typeof createDefenseRequestSchema>;
 export type CreateDefenseVersionRequest = z.infer<typeof createDefenseVersionRequestSchema>;
+export type QuarantineDefenseVersionRequest = z.infer<typeof quarantineDefenseVersionRequestSchema>;
 export type CreateReplayRequest = z.infer<typeof createReplayRequestSchema>;
 export type ClaimValidationJobRequest = z.infer<typeof claimValidationJobRequestSchema>;
 export type SubmitValidatorAttestationRequest = z.infer<typeof submitValidatorAttestationRequestSchema>;

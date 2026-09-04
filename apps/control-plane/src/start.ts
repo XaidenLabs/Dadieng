@@ -132,7 +132,7 @@ const authenticator = new StaticApiKeyAuthenticator([{
   principal: {
     subject: "local-agent",
     tenantId: "local-tenant",
-    scopes: ["receipts:write", "defenses:write", "replays:write", "validators:read", "validators:write"],
+    scopes: ["receipts:write", "defenses:write", "safety:write", "replays:write", "validators:read", "validators:write"],
   },
 }]);
 const server = createControlPlaneServer(new ControlPlaneHttpApp(service, authenticator));

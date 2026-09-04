@@ -321,9 +321,29 @@ pnpm typecheck
 
 The control plane must never publish a version unless Monad reports it Stable with matching commitments. The SDK must verify the trusted signer, time window, network, lineage, bundle hashes, compatibility, current Monad state, and shadow suite before replacing the active rules. A partial or invalid set must never activate. Offline recovery must use only a previously verified cache according to the configured failure policy, while retaining both the current and prior known-good sets.
 
+## Phase 13 — quarantine and rollback
+
+Status: **Complete**
+
+- [x] Dedicated `safety:write` authorization boundary
+- [x] Idempotent guardian quarantine API with public reason and evidence commitment
+- [x] Optional same-defense replacement validation
+- [x] Durable Monad quarantine operation and pending-state response
+- [x] Active-manifest Monad revalidation before expiry
+- [x] Highest compatible older Stable version selection
+- [x] Signed rollback manifest linked to the quarantined manifest
+- [x] SDK rollback through the complete Phase 12 trust gates
+- [x] Previous manifest retained for audit continuity
+- [x] Candidate and Quarantined versions excluded from rollback selection
+- [x] Two Phase 13 guardian-operation and end-to-end rollback scenarios
+- [x] One hundred and twenty-five total automated tests passing across the workspace
+
+### Phase 13 gate
+
+A quarantine request must expose its reason, evidence commitment, replacement, and pending chain operation without claiming finality. Once Monad reports the selected version as Quarantined, the manifest publisher must stop serving it immediately, link a new signed manifest to the prior hash, and select only the highest older version that remains Stable with matching commitments. The SDK must verify and activate that rollback as one complete set.
+
 ## Later phases
 
-- Phase 13: quarantine and rollback
 - Phase 14: Envio indexer
 - Phase 15: minimal operator console
 - Phase 16: sponsor integrations

@@ -8,13 +8,14 @@ import {
   validatorAttestationSigningMessage,
   type ReplayReport,
 } from "@dadieng/schemas";
-import { getAddress, recoverMessageAddress } from "viem";
+import { getAddress, recoverMessageAddress, zeroHash } from "viem";
 import type { ApiPrincipal } from "./auth.js";
 import type {
   CreateDefenseRequest,
   CreateDefenseVersionRequest,
   CreateReceiptRequest,
   CreateReplayRequest,
+  QuarantineDefenseVersionRequest,
   SubmitValidatorAttestationRequest,
 } from "./contracts.js";
 import { ApiProblem } from "./errors.js";
@@ -242,6 +243,47 @@ export class ControlPlaneService {
     const operation = await this.chainOperations.get(operationId);
     if (!operation) throw new ApiProblem(404, "operation-not-found", "Operation not found", "No chain operation exists for this ID.");
     return this.publicChainOperation(operation);
+  }
+
+  async quarantineDefenseVersion(
+    principal: ApiPrincipal,
+    defenseVersionId: string,
+    input: QuarantineDefenseVersionRequest,
+  ) {
+    if (!this.chainOperations) {
+      throw new ApiProblem(503, "chain-adapter-unavailable", "Chain adapter unavailable", "Quarantine requires a configured Monad transaction adapter.");
+    }
+    const version = await this.repository.getDefenseVersion(defenseVersionId);
+    if (!version) {
+      throw new ApiProblem(404, "defense-version-not-found", "Defense version not found", "The requested version cannot be quarantined.");
+    }
+    let replacementVersionKey: `0x${string}` = zeroHash;
+    if (input.replacementDefenseVersionId) {
+      const replacement = await this.repository.getDefenseVersion(input.replacementDefenseVersionId);
+      if (!replacement || replacement.defenseId !== version.defenseId || replacement.defenseVersionId === defenseVersionId) {
+        throw new ApiProblem(422, "invalid-replacement-version", "Invalid replacement version", "A replacement must be another published version of the same defense.");
+      }
+      replacementVersionKey = defenseVersionKey(replacement.defenseId, replacement.bundle.manifest.version);
+    }
+    const operation = (await this.chainOperations.enqueue({
+      tenantId: principal.tenantId,
+      deduplicationKey: `quarantine:${defenseVersionId}:${input.evidenceHash}:${input.replacementDefenseVersionId ?? "none"}`,
+      request: {
+        kind: "quarantine-version",
+        versionKey: defenseVersionKey(version.defenseId, version.bundle.manifest.version),
+        reasonCode: input.reasonCode,
+        evidenceHash: sha256Commitment(input.evidenceHash),
+        replacementVersionKey,
+      },
+    })).operation;
+    return {
+      defenseVersionId,
+      status: "pending" as const,
+      reasonCode: input.reasonCode,
+      evidenceHash: input.evidenceHash,
+      replacementDefenseVersionId: input.replacementDefenseVersionId,
+      operation: this.publicChainOperation(operation),
+    };
   }
 
   async runNextChainOperation(): Promise<ChainOperationRecord | undefined> {

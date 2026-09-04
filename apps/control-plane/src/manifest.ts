@@ -85,12 +85,14 @@ export class StableManifestPublisher {
     if (channel !== "stable") throw new Error("Only the stable channel is available");
     const now = this.runtime.now();
     const latest = await this.repository.getLatestStableManifest(channel);
-    if (latest && Date.parse(latest.manifest.expiresAt) > Date.parse(now)) return latest;
-
     const registryCode = await this.reader.getCode(this.config.registryAddress);
     if (!registryCode || registryCode === "0x") throw new Error("Dadieng Registry is not deployed");
     const storedVersions = await this.repository.listDefenseVersions();
-    const stable = [] as StableManifest["versions"];
+    const storedByIdentity = new Map(storedVersions.map((stored) => [stored.defenseVersionId, stored]));
+    if (latest && Date.parse(latest.manifest.expiresAt) > Date.parse(now)
+      && await this.isStillStable(latest.manifest, storedByIdentity)) return latest;
+
+    const stableByDefense = new Map<string, StableManifest["versions"][number]>();
     for (const stored of storedVersions) {
       const bundle = verifyDefenseBundle(stored.bundle);
       const versionKey = defenseVersionKey(bundle.manifest.defenseId, bundle.manifest.version);
@@ -100,7 +102,7 @@ export class StableManifestPublisher {
         || state.artifactHash.toLowerCase() !== sha256Commitment(bundle.manifest.artifactHash).toLowerCase()) {
         throw new Error(`Stable Monad commitment mismatch for ${stored.defenseVersionId}`);
       }
-      stable.push({
+      const entry: StableManifest["versions"][number] = {
         defenseId: bundle.manifest.defenseId,
         version: bundle.manifest.version,
         artifactHash: bundle.manifest.artifactHash,
@@ -109,8 +111,13 @@ export class StableManifestPublisher {
           this.config.publicBaseUrl,
         ).toString(),
         status: "stable",
-      });
+      };
+      const selected = stableByDefense.get(entry.defenseId);
+      if (!selected || compareSemanticVersions(entry.version, selected.version) > 0) {
+        stableByDefense.set(entry.defenseId, entry);
+      }
     }
+    const stable = [...stableByDefense.values()];
     stable.sort((left, right) => left.defenseId.localeCompare(right.defenseId) || left.version.localeCompare(right.version));
     const unsigned: Omit<StableManifest, "signature"> = {
       schemaVersion: DADIENG_MANIFEST_SCHEMA_VERSION,
@@ -130,4 +137,32 @@ export class StableManifestPublisher {
     if (!concurrent) throw new Error("Stable manifest continuity conflict");
     return concurrent;
   }
+
+  private async isStillStable(
+    manifest: StableManifest,
+    storedByIdentity: Map<string, Awaited<ReturnType<ControlPlaneRepository["listDefenseVersions"]>>[number]>,
+  ): Promise<boolean> {
+    for (const version of manifest.versions) {
+      const stored = storedByIdentity.get(`${version.defenseId}@${version.version}`);
+      if (!stored) return false;
+      const bundle = verifyDefenseBundle(stored.bundle);
+      const state = await this.reader.getVersion(
+        this.config.registryAddress,
+        defenseVersionKey(version.defenseId, version.version),
+      );
+      if (state.status !== 3
+        || state.manifestHash.toLowerCase() !== sha256Commitment(bundle.manifestHash).toLowerCase()
+        || state.artifactHash.toLowerCase() !== sha256Commitment(bundle.manifest.artifactHash).toLowerCase()) return false;
+    }
+    return true;
+  }
+}
+
+function compareSemanticVersions(left: string, right: string): number {
+  const leftParts = left.split(".").map(BigInt);
+  const rightParts = right.split(".").map(BigInt);
+  for (let index = 0; index < 3; index += 1) {
+    if (leftParts[index]! !== rightParts[index]!) return leftParts[index]! > rightParts[index]! ? 1 : -1;
+  }
+  return 0;
 }

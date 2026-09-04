@@ -9,6 +9,7 @@ import {
   claimValidationJobRequestSchema,
   createReceiptRequestSchema,
   createReplayRequestSchema,
+  quarantineDefenseVersionRequestSchema,
   submitValidatorAttestationRequestSchema,
 } from "./contracts.js";
 import { ApiProblem, type ProblemDetails } from "./errors.js";
@@ -280,6 +281,14 @@ export class ControlPlaneHttpApp {
             },
           };
         });
+      }
+      const quarantineMatch = path.match(/^\/v1\/defense-versions\/([^/]+)\/quarantine$/);
+      if (request.method === "POST" && quarantineMatch?.[1]) {
+        const defenseVersionId = decodeURIComponent(quarantineMatch[1]);
+        return await this.write(request, requestId, "safety:write", quarantineDefenseVersionRequestSchema, async (principal, input) => ({
+          status: 202,
+          body: await this.service.quarantineDefenseVersion(principal, defenseVersionId, input),
+        }));
       }
       if (request.method === "POST" && path === "/v1/replays") {
         return await this.write(request, requestId, "replays:write", createReplayRequestSchema, async (principal, input) => {

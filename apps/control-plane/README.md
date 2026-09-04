@@ -34,6 +34,7 @@ Every write requires `Authorization: Bearer <key>`, the corresponding scope, `Co
 | `GET` | `/v1/attestations/{id}` | Public, rate-limited | Read a submitted attestation and its privacy-safe report |
 | `GET` | `/v1/channels/stable/manifest` | Public, rate-limited | Read the short-lived signed Stable manifest |
 | `GET` | `/v1/defense-versions/{id}/bundle` | Public, rate-limited | Download an immutable content-addressed Defense Module bundle |
+| `POST` | `/v1/defense-versions/{id}/quarantine` | `safety:write` | Queue a guardian quarantine with public evidence and an optional replacement |
 
 Usage and approval route families are reserved and return a clear `501` response until their planned phases.
 
@@ -76,3 +77,5 @@ The validator downloads only the public Defense Module bundle and declared repla
 Set `DADIENG_MANIFEST_PRIVATE_KEY`, `DADIENG_PUBLIC_BASE_URL`, and optionally `DADIENG_MANIFEST_TTL_SECONDS` together with the complete Monad configuration. The manifest key is a dedicated off-chain signing key and should not be the transaction signer.
 
 The control plane includes only versions whose current Monad Registry state is Stable and whose on-chain commitments match the stored bundle. It signs a short-lived manifest, links it to the prior manifest hash, persists the append-only lineage, and serves it with an ETag. Bundle URLs are immutable and content-addressed. If Monad verification or signing fails, the endpoint returns a sanitized `503` rather than publishing an unverified set.
+
+Manifest reads recheck currently selected versions even before expiry. After a confirmed quarantine, the next manifest links to the prior hash and selects the highest older version from the same defense family that remains Stable on Monad. Quarantine requests are authenticated, idempotent, and return a pending chain operation; they never imply that the Registry changed before confirmation.
