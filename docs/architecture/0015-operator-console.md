@@ -2,19 +2,20 @@
 
 ## Decision
 
-Dadieng ships one responsive, server-rendered operator surface under
-`apps/web`. The information hierarchy follows the protocol rather than its
-implementation: health, defenses, receipts, replay results, validators,
-integrations, rewards, and safety settings. Every security-sensitive state is
-written in plain language and is not encoded by color alone.
+Dadieng ships one responsive operator surface at `/console` inside
+`apps/landing`. Product, documentation, and operations therefore share one
+domain and one visual system. The information hierarchy follows the protocol:
+health, defenses, receipts, replay results, validators, integrations, rewards,
+and safety settings. Every security-sensitive state is written in plain
+language and is not encoded by color alone.
 
 ## Read model and authority
 
-The server reads aggregate protocol state from the Envio GraphQL endpoint with
-a bounded timeout and short revalidation interval. Missing configuration,
-network failures, and old indexed timestamps render explicit demonstration,
-offline, or stale states. These states never enable a write or hide the fact
-that Monad remains the canonical authority.
+The site's Worker reads aggregate protocol state from the Envio GraphQL
+endpoint through a same-origin `/api/console` route with a bounded timeout.
+Missing configuration, network failures, and old indexed timestamps render
+explicit demonstration, offline, or stale states. These states never enable a
+write or hide the fact that Monad remains the canonical authority.
 
 ## Safety and privacy
 
@@ -25,8 +26,6 @@ The supplied Dadieng logo and banner are the canonical visual assets.
 
 ## Operations
 
-The vinext build emits a Cloudflare-compatible worker and static assets. The
-HTML verification test exercises the production worker without a browser and
-checks the critical product and accessibility states. Local runtime preview
-requires a host supported by the packaged `workerd` binary; production builds
-remain portable through the hosting pipeline.
+The Vite build emits static assets plus a Cloudflare-compatible Worker. Content
+and Worker tests verify the unified route, console information architecture,
+honest fallback labeling, and read-only method boundary.

@@ -40,20 +40,19 @@ pnpm api:start
 - `apps/validator-cli`: independent job claiming, Monad commitment verification, replay, signing, and validator-wallet submission.
 - `contracts`: immutable Monad registry, independent validation, usage commitment, and reward contracts.
 - `indexer`: Envio HyperIndex configuration, GraphQL security graph, lifecycle handlers, and freshness model.
-- `apps/web`: private operator console driven by the Envio read model.
 - `packages/sponsor-integrations`: Chainlink CRE, Dynamic signing, Mera PRF evidence, and Qwen red-team boundaries.
 - `packages/adapters`: drop-in TypeScript MCP and Vercel AI SDK protection.
 - `examples/cre-validation-workflow`: deployable Chainlink CRE scheduling and consensus callback workflow.
 - `examples/full-protocol-demo`: credential-free eight-stage proof with 100 deterministic replay executions.
-- `apps/landing`: Dadieng product site and SDK documentation.
+- `apps/landing`: unified Dadieng product site, SDK documentation, and Envio-backed operator console.
 - `examples/mcp-security-demo`: vulnerable and protected executions of the same tool result.
 - `defenses/mcp-boundary`: committed reference bundle with artifact, manifest, suite, and SBOM.
 - `replays/mcp-boundary`: committed deterministic report for the reference defense.
 
 The demo is intentionally simulated: it proves that the vulnerable planner accepts an unsafe request, but it never reads or transmits a real secret.
 
-The operator console is available privately at
-[dadieng-console.dadiengalfred.chatgpt.site](https://dadieng-console.dadiengalfred.chatgpt.site).
+The operator console lives with the product and documentation at
+[dadieng.dadiengalfred.chatgpt.site/console](https://dadieng.dadiengalfred.chatgpt.site/console).
 
 ## Product invariant
 

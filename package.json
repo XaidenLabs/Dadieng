@@ -11,7 +11,7 @@
     "replay:report": "pnpm --filter @dadieng/replay-engine report:mcp",
     "demo:final": "pnpm --filter @dadieng/full-protocol-demo demo",
     "demo:reset": "node scripts/reset-demo.mjs",
-    "release:check": "pnpm test && pnpm typecheck && pnpm --filter @dadieng/landing test && pnpm --filter @dadieng/web test && pnpm --filter @dadieng/sdk exec npm pack --dry-run --json && pnpm --filter @dadieng/adapters exec npm pack --dry-run --json && pnpm security:audit",
+    "release:check": "pnpm test && pnpm typecheck && pnpm --filter @dadieng/landing test && pnpm --filter @dadieng/console-redirect test && pnpm --filter @dadieng/sdk exec npm pack --dry-run --json && pnpm --filter @dadieng/adapters exec npm pack --dry-run --json && pnpm security:audit",
     "security:audit": "pnpm audit --prod --audit-level high",
     "api:start": "pnpm --filter @dadieng/control-plane start",
     "db:migrate": "pnpm --filter @dadieng/control-plane db:migrate",

@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react';
 import { Menu, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const CONSOLE_URL = 'https://dadieng-console.dadiengalfred.chatgpt.site';
-
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -16,6 +14,7 @@ export default function Navbar() {
     { label: 'Protocol', href: '/#protocol', route: false },
     { label: 'Integrations', href: '/#integrations', route: false },
     { label: 'Docs', href: '/docs', route: true },
+    { label: 'Console', href: '/console', route: true },
   ];
   return (
     <header className={`navbar ${scrolled ? 'scrolled' : ''}`}>
@@ -25,7 +24,7 @@ export default function Navbar() {
           {links.map((link) => link.route
             ? <Link key={link.label} to={link.href} onClick={() => setOpen(false)}>{link.label}</Link>
             : <a key={link.label} href={link.href} onClick={() => setOpen(false)}>{link.label}</a>)}
-          <a href={CONSOLE_URL} target="_blank" rel="noreferrer" className="nav-console">Open console ↗</a>
+          <Link to="/console" onClick={() => setOpen(false)} className="nav-console">Open console →</Link>
         </nav>
         <button className="menu" onClick={() => setOpen(!open)} aria-label={open ? 'Close menu' : 'Open menu'}>{open ? <X /> : <Menu />}</button>
       </div>

@@ -368,23 +368,23 @@ Envio code generation and the typed handler build must pass from the committed c
 
 Status: **Complete**
 
-- [x] Responsive Dadieng-branded operator console
+- [x] Responsive Dadieng-branded operator console at the main site's `/console` route
 - [x] Overview, Defense Graph, Threat Receipts, Replay Lab, Validators, Integrations, Rewards, and Settings
-- [x] Server-side Envio GraphQL read model with a bounded timeout
+- [x] Same-origin Worker API for the Envio GraphQL read model with a bounded timeout
 - [x] Explicit live, stale, offline, and demonstration-data states
 - [x] Quarantine, rollback, pending-finality, and validator-threshold visibility
 - [x] Human approval and evidence-privacy boundaries
 - [x] Keyboard focus, semantic landmarks, status text, and reduced-motion support
 - [x] Production Cloudflare Worker build
-- [x] Two production-render and accessibility-state scenarios
+- [x] Unified-route, fallback-state, method-boundary, and production-build scenarios
 - [x] One hundred and thirty total automated tests passing across the workspace
 
 ### Phase 15 gate
 
-The production site must render all required protocol surfaces and remain
+The unified production site must render all required protocol surfaces and remain
 usable at desktop and mobile widths. An indexer failure must be visible and
 must never imply that derived data can authorize a protocol action. The
-production worker build and server-render tests must pass.
+production Worker build and route/API tests must pass.
 
 ## Phase 16 — sponsor integrations
 
@@ -446,10 +446,10 @@ Status: **Complete locally; external testnet and sponsor evidence pending owner 
 - [x] Live demo, degraded-service, and emergency rollback runbooks
 - [x] npm package boundary, ordered release plan, tarball checks, and trusted-publishing design
 - [x] Dadieng landing page and SDK documentation derived from the supplied design
-- [x] Private operator console and landing-page deployments
+- [x] Unified private product, documentation, and operator-console deployment
 - [x] Security policy and honest submission-evidence checklist
 - [x] Five Phase 18 site and protocol-story scenarios
-- [x] One hundred and forty-six total automated tests passing across the workspace
+- [x] One hundred and forty-seven total automated tests passing across the workspace
 
 ### Phase 18 gate
 

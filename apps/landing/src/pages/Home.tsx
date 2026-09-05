@@ -54,7 +54,7 @@ export default function Home() {
 
         <section className="section developer"><div className="container developer-inner"><div><div className="section-kicker red">For developers</div><h2>Two wrappers.<br />One protected call.</h2><p>Start with the SDK, then add the adapter for your framework. Dadieng evaluates locally and emits sanitized incidents through listeners you control.</p><Link to="/docs" className="text-link">Read the integration guide <ArrowRight /></Link></div><div className="install-card"><div><span>workspace today</span><code>pnpm --filter @dadieng/sdk build</code></div><div><span>public release channel</span><code>npm install @dadieng/sdk @dadieng/adapters</code></div><small>The npm command becomes active after the first signed public release.</small></div></div></section>
 
-        <section className="cta"><div className="container"><div className="cta-mark">D</div><h2>Agents should inherit immunity,<br />not repeat incidents.</h2><p>Build with the shared defense layer.</p><div className="hero-actions"><Link className="button primary" to="/docs">Start integrating <ArrowRight size={17} /></Link><a className="button secondary" href="https://dadieng-console.dadiengalfred.chatgpt.site">Open private console</a></div></div></section>
+        <section className="cta"><div className="container"><div className="cta-mark">D</div><h2>Agents should inherit immunity,<br />not repeat incidents.</h2><p>Build with the shared defense layer.</p><div className="hero-actions"><Link className="button primary" to="/docs">Start integrating <ArrowRight size={17} /></Link><Link className="button secondary" to="/console">Open operator console</Link></div></div></section>
       </main>
       <Footer />
     </div>

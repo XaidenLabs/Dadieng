@@ -34,7 +34,7 @@ a clean external project, and promote only after the smoke test passes.
 ## Hosting map
 
 - npm: compiled adopter SDK and adapters
-- web hosting: landing page and operator console
+- web hosting: unified product site, documentation, and `/console`
 - application compute: control plane, replay workers, and validator workers
 - Monad: canonical protocol contracts and lifecycle state
 - Envio: derived GraphQL read model
