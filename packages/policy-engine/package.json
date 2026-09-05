@@ -1,7 +1,13 @@
 {
   "name": "@dadieng/policy-engine",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
+  "description": "Deterministic local policy evaluation for Dadieng-protected AI agents.",
+  "license": "UNLICENSED",
+  "repository": { "type": "git", "url": "git+https://github.com/XaidenLabs/Dadieng.git", "directory": "packages/policy-engine" },
+  "homepage": "https://dadieng.vercel.app/docs",
+  "publishConfig": { "access": "public" },
+  "engines": { "node": ">=22" },
   "type": "module",
   "exports": {
     ".": {
@@ -9,6 +15,7 @@
       "import": "./dist/index.js"
     }
   },
+  "files": ["dist"],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit"

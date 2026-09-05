@@ -1,7 +1,13 @@
 {
   "name": "@dadieng/contracts-client",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
+  "description": "Typed Monad contract client and durable transaction coordination for Dadieng.",
+  "license": "UNLICENSED",
+  "repository": { "type": "git", "url": "git+https://github.com/XaidenLabs/Dadieng.git", "directory": "packages/contracts-client" },
+  "homepage": "https://dadieng.vercel.app/docs",
+  "publishConfig": { "access": "public" },
+  "engines": { "node": ">=22" },
   "type": "module",
   "exports": {
     ".": {
