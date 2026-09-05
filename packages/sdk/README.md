@@ -4,6 +4,10 @@ The Dadieng SDK intercepts model and tool lifecycle events, normalizes them into
 
 ## Quick start
 
+```sh
+npm install @dadieng/sdk
+```
+
 ```ts
 import { createDadieng } from "@dadieng/sdk";
 

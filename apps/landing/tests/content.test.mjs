@@ -12,7 +12,8 @@ test('ships Dadieng product and SDK content without legacy product claims', asyn
   const content = files.join('\n');
   assert.match(content, /One agent learns/);
   assert.match(content, /@dadieng\/sdk/);
-  assert.match(content, /npm trusted publishing/);
+  assert.match(content, /live on the public npm registry/);
+  assert.match(content, /npm install @dadieng\/sdk @dadieng\/adapters/);
   assert.match(content, /Monad/);
   assert.doesNotMatch(content, /Universal Solana Orchestrator|@xaidenlabs\/uso|uso init/i);
   await assert.rejects(access(new URL('public/.well-known/ory-verify.txt', root)));

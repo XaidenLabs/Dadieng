@@ -1,10 +1,10 @@
-# npm distribution plan
+# npm distribution
 
 Dadieng's browser/server code and its npm packages are different products.
 
 ## What goes to npm
 
-The first public release should publish the dependency chain in this order:
+The public `0.1.0` release was published in this dependency order:
 
 1. `@dadieng/schemas`
 2. `@dadieng/defense-module`, `@dadieng/policy-engine`,
@@ -17,19 +17,18 @@ packs a workspace package. The control plane, replay worker, validator CLI,
 indexer, console, landing page, and CRE workflow are deployed services or
 operational artifacts; they are not installed into adopter applications.
 
-## Safe first release
+## Current release
 
-The packages remain marked `private` until the owner completes three external
-steps: confirm control of the `@dadieng` npm scope, select and approve an
-open-source license, and connect a public GitHub repository to npm trusted
-publishing. Then add the license and repository metadata, remove `private` only
-from the package list above, and set `publishConfig.access` to `public`.
+The seven packages above are public under the npm `@dadieng` organization at
+version `0.1.0`. They are currently marked `UNLICENSED`: public registry access
+does not grant an open-source license. All other workspace applications and
+operational packages remain private.
 
-Run `pnpm release:check`, inspect every tarball, and scan for secrets before
-publishing. Prefer npm trusted publishing from a protected GitHub release
-environment; it uses OIDC and creates provenance for public packages from a
-public repository. Publish a release candidate dist-tag first, install it into
-a clean external project, and promote only after the smoke test passes.
+The release passed the full test and type-check suites, tarball inspection, a
+high-severity production dependency audit, registry integrity verification,
+and a clean external installation smoke test. Future releases should move to
+npm trusted publishing from a protected GitHub release environment after the
+repository visibility and licensing policy are approved.
 
 ## Hosting map
 
