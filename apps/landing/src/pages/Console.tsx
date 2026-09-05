@@ -7,11 +7,12 @@ import './console.css';
 type FreshnessStatus = 'loading' | 'live' | 'stale' | 'offline' | 'demo';
 type ConsoleData = {
   freshness: { status: FreshnessStatus; label: string; block: number };
-  metrics: { receipts: number; protectedEvents: number; stableVersions: number; validators: number; p95LatencyMs: number; attackEffectiveness: number; utility: number; validatorAgreement: number; adoption: number };
+  metrics: { receipts: number; protectedEvents: number; stableVersions: number; validators: number; p95LatencyMs: number | null; attackEffectiveness: number | null; utility: number | null; validatorAgreement: number | null; adoption: number | null };
   versions: Array<{ id: string; name: string; version: string; status: number; attestations: number; threshold: number; adoption: number; updated: string }>;
   receipts: Array<{ id: string; attackClass: string; surface: string; severity: 'critical' | 'high' | 'medium'; resolution: string; time: string }>;
   validators: Array<{ id: string; label: string; agreement: number }>;
   integrations: Array<{ name: string; short: string; role: string; status: 'connected' | 'ready' | 'degraded' }>;
+  rewards: { currentEpoch: number | null; totalClaimed: string };
 };
 
 const initialData: ConsoleData = {
@@ -19,7 +20,7 @@ const initialData: ConsoleData = {
   metrics: { receipts: 37, protectedEvents: 12_480, stableVersions: 1, validators: 2, p95LatencyMs: 4, attackEffectiveness: 100, utility: 100, validatorAgreement: 100, adoption: 84 },
   versions: [
     { id: 'mcp-020', name: 'MCP Instruction Boundary', version: 'dadieng.mcp-boundary@0.2.0', status: 3, attestations: 2, threshold: 2, adoption: 84, updated: '4 min ago' },
-    { id: 'mcp-030', name: 'MCP Instruction Boundary', version: 'dadieng.mcp-boundary@0.3.0', status: 4, attestations: 2, threshold: 2, adoption: 0, updated: '18 min ago' },
+    { id: 'mcp-030', name: 'MCP Instruction Boundary', version: 'dadieng.mcp-boundary@0.3.0', status: 5, attestations: 2, threshold: 2, adoption: 0, updated: '18 min ago' },
   ],
   receipts: [
     { id: 'r1', attackClass: 'Tool poisoning', surface: 'MCP tool result', severity: 'critical', resolution: 'Contained', time: '2 min ago' },
@@ -37,6 +38,7 @@ const initialData: ConsoleData = {
     { name: 'Dynamic', short: 'DY', role: 'Participant signing', status: 'ready' },
     { name: 'Mera', short: 'ME', role: 'Evidence key derivation', status: 'ready' },
   ],
+  rewards: { currentEpoch: null, totalClaimed: '0 wei' },
 };
 
 const navigation = [
@@ -46,7 +48,7 @@ const navigation = [
   ['rewards', 'Rewards', Gift], ['settings', 'Settings', Settings],
 ] as const;
 
-const statusName = (status: number) => ['Draft', 'Candidate', 'Rejected', 'Stable', 'Quarantined', 'Revoked'][status] ?? 'Unknown';
+const statusName = (status: number) => ['None', 'Draft', 'Candidate', 'Stable', 'Rejected', 'Quarantined', 'Revoked'][status] ?? 'Unknown';
 
 export default function Console() {
   const [data, setData] = useState<ConsoleData>(initialData);
@@ -68,6 +70,7 @@ export default function Console() {
 
   const live = data.freshness.status === 'live';
   const warning = !live;
+  const percentage = (value: number | null) => value === null ? '—' : `${value}%`;
 
   return (
     <div className="console-page">
@@ -90,11 +93,11 @@ export default function Console() {
           <section className="console-signal" aria-labelledby="signal-heading">
             <div className="signal-copy"><p className="console-kicker">Live protection</p><h2 id="signal-heading">Known attacks stop here.</h2><span>Incidents become verified defenses without exposing private evidence.</span></div>
             <div className="signal-route" aria-label="Threat receipts flowing through Dadieng to protected events"><div><b>{data.metrics.receipts}</b><small>Receipts</small></div><span className="route-line"><i /><i /></span><span className="route-core">D</span><span className="route-line outbound"><i /><i /></span><div><b>{data.metrics.protectedEvents.toLocaleString()}</b><small>Protected events</small></div></div>
-            <div className="signal-health"><span><i /> Network healthy</span><strong>{data.metrics.p95LatencyMs} ms</strong><small>P95 local decision</small></div>
+            <div className="signal-health"><span><i /> Network healthy</span><strong>{data.metrics.p95LatencyMs === null ? '—' : `${data.metrics.p95LatencyMs} ms`}</strong><small>P95 local decision</small></div>
           </section>
 
           <section className="console-metrics" aria-label="Protocol metrics">
-            {[['Attack effectiveness', `${data.metrics.attackEffectiveness}%`, '20 / 20 canonical attacks'], ['Legitimate utility', `${data.metrics.utility}%`, 'No control regressions'], ['Validator agreement', `${data.metrics.validatorAgreement}%`, `${data.metrics.validators} eligible identities`], ['Manifest adoption', `${data.metrics.adoption}%`, 'Verified stable channel']].map(([label, value, detail]) => <article key={label}><p>{label}</p><strong>{value}</strong><small>{detail}</small></article>)}
+            {[['Attack effectiveness', percentage(data.metrics.attackEffectiveness), 'Awaiting replay telemetry'], ['Legitimate utility', percentage(data.metrics.utility), 'Awaiting replay telemetry'], ['Validator agreement', percentage(data.metrics.validatorAgreement), `${data.metrics.validators} eligible identities`], ['Manifest adoption', percentage(data.metrics.adoption), 'Awaiting agent telemetry']].map(([label, value, detail]) => <article key={label}><p>{label}</p><strong>{value}</strong><small>{detail}</small></article>)}
           </section>
 
           <section id="defenses" className="console-panel wide-panel">
@@ -114,7 +117,7 @@ export default function Console() {
           <section id="safety" className="rollback-panel"><div><p className="console-kicker">Emergency readiness</p><h2>Rollback protection is armed.</h2><p>Quarantined versions leave new manifests after Monad confirmation. Agents activate the highest older Stable version.</p></div><div><strong>0<small>active quarantines</small></strong><strong>2<small>known-good sets</small></strong></div><a href="#defenses">Inspect stable versions →</a></section>
 
           <div className="console-grid bottom-grid">
-            <section id="rewards" className="console-panel"><div className="console-panel-head"><div><p className="console-kicker">Rewards</p><h2>Verified contribution</h2></div><span className="verified-label"><i /> Epoch open</span></div><p className="panel-copy">Allocations derive from finalized usage and validation events. Claims remain pending until Monad confirms them.</p><div className="detail-row"><span>Current epoch <b>17</b></span><span>Claimable <b>0 DADIENG</b></span></div></section>
+            <section id="rewards" className="console-panel"><div className="console-panel-head"><div><p className="console-kicker">Rewards</p><h2>Verified contribution</h2></div><span className="verified-label"><i /> On-chain totals</span></div><p className="panel-copy">These values derive from finalized Monad usage and reward events indexed by Envio.</p><div className="detail-row"><span>Latest epoch <b>{data.rewards.currentEpoch ?? '—'}</b></span><span>Total claimed <b>{data.rewards.totalClaimed}</b></span></div></section>
             <section id="settings" className="console-panel"><div className="console-panel-head"><div><p className="console-kicker">Settings</p><h2>Safety and privacy</h2></div><ShieldCheck /></div><div className="setting-row"><Activity /><div><strong>Human approval required</strong><small>Quarantine, replacement, and reward changes</small></div></div><div className="setting-row"><ShieldCheck /><div><strong>Evidence remains private</strong><small>Only hashes and sanitized receipts leave the agent</small></div></div></section>
           </div>
 

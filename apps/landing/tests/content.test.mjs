@@ -60,3 +60,14 @@ test('console uses a readable operational type scale', async () => {
   assert.match(styles, /\.console-list strong,.validator-list strong\{font-size:14px/);
   assert.match(styles, /\.setting-row strong\{font-size:14px/);
 });
+
+test('console uses Envio sync metadata and the exact Monad lifecycle mapping', async () => {
+  const [worker, consolePage] = await Promise.all([
+    readFile(new URL('worker/index.js', root), 'utf8'),
+    readFile(new URL('src/pages/Console.tsx', root), 'utf8'),
+  ]);
+  assert.match(worker, /_meta \{ chainId progressBlock sourceBlock eventsProcessed isReady \}/);
+  assert.match(worker, /ThreatReceipt\(order_by/);
+  assert.match(worker, /UsageCommitment\(order_by/);
+  assert.match(consolePage, /\['None', 'Draft', 'Candidate', 'Stable', 'Rejected', 'Quarantined', 'Revoked'\]/);
+});

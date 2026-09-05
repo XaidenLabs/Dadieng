@@ -7,12 +7,12 @@ This HyperIndex v3 project derives the public Dadieng security graph from events
 Set the deployed addresses and optional start block:
 
 ```bash
-export MONAD_RPC_URL="https://testnet-rpc.monad.xyz"
+export ENVIO_MONAD_RPC_URL="https://testnet-rpc.monad.xyz"
 export ENVIO_CHAIN_ID=10143
 export ENVIO_START_BLOCK=0
-export DADIENG_REGISTRY_ADDRESS="0x..."
-export DADIENG_VALIDATION_ADDRESS="0x..."
-export DADIENG_REWARDS_ADDRESS="0x..."
+export ENVIO_DADIENG_REGISTRY_ADDRESS="0x..."
+export ENVIO_DADIENG_VALIDATION_ADDRESS="0x..."
+export ENVIO_DADIENG_REWARDS_ADDRESS="0x..."
 ```
 
 The checked-in fallback addresses exist only so code generation works before deployment. Never treat data from those placeholders as a live Dadieng deployment.
@@ -25,7 +25,7 @@ pnpm --filter @dadieng/indexer build
 pnpm --filter @dadieng/indexer dev
 ```
 
-Local `dev` requires Docker. Envio Cloud can run the same `config.yaml`, `schema.graphql`, and handlers without changing the data model.
+Local `dev` requires Docker. Envio Cloud can run the same `config.yaml`, `schema.graphql`, and handlers without changing the data model. Set the Cloud root directory to `indexer`, the config path to `config.yaml`, and provide the `ENVIO_`-prefixed values above in its environment settings.
 
 ## Indexed views
 

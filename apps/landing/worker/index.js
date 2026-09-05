@@ -24,7 +24,7 @@ const demoData = (status = 'demo') => ({
   metrics: { receipts: 37, protectedEvents: 12_480, stableVersions: 1, validators: 2, p95LatencyMs: 4, attackEffectiveness: 100, utility: 100, validatorAgreement: 100, adoption: 84 },
   versions: [
     { id: 'mcp-020', name: 'MCP Instruction Boundary', version: 'dadieng.mcp-boundary@0.2.0', status: 3, attestations: 2, threshold: 2, adoption: 84, updated: '4 min ago' },
-    { id: 'mcp-030', name: 'MCP Instruction Boundary', version: 'dadieng.mcp-boundary@0.3.0', status: 4, attestations: 2, threshold: 2, adoption: 0, updated: '18 min ago' },
+    { id: 'mcp-030', name: 'MCP Instruction Boundary', version: 'dadieng.mcp-boundary@0.3.0', status: 5, attestations: 2, threshold: 2, adoption: 0, updated: '18 min ago' },
   ],
   receipts: [
     { id: 'r1', attackClass: 'Tool poisoning', surface: 'MCP tool result', severity: 'critical', resolution: 'Contained', time: '2 min ago' },
@@ -42,12 +42,16 @@ const demoData = (status = 'demo') => ({
     { name: 'Dynamic', short: 'DY', role: 'Participant signing', status: 'ready' },
     { name: 'Mera', short: 'ME', role: 'Evidence key derivation', status: 'ready' },
   ],
+  rewards: { currentEpoch: null, totalClaimed: '0 wei' },
 });
 
 const query = `query DadiengConsole {
-  ProtocolMetrics_by_pk(id: "dadieng") { stableVersionCount receiptCount protectedEventCount lastIndexedBlock lastIndexedAt }
+  _meta { chainId progressBlock sourceBlock eventsProcessed isReady }
+  ProtocolMetrics_by_pk(id: "dadieng") { stableVersionCount receiptCount protectedEventCount rewardClaimed lastIndexedBlock lastIndexedAt }
   DefenseVersion(order_by: { updatedAt: desc }, limit: 8) { id status passingAttestations validationThreshold updatedAt }
   Validator(where: { active: { _eq: true } }, order_by: { submittedCount: desc }, limit: 6) { id wallet submittedCount passingCount }
+  ThreatReceipt(order_by: { updatedAt: desc }, limit: 8) { id attackClass resolution updatedAt }
+  UsageCommitment(order_by: { epoch: desc }, limit: 1) { epoch }
 }`;
 
 async function loadConsoleData(env) {
@@ -60,15 +64,27 @@ async function loadConsoleData(env) {
     if (!response.ok) throw new Error('Indexer unavailable');
     const payload = await response.json();
     const metrics = payload.data?.ProtocolMetrics_by_pk;
-    if (!metrics) throw new Error('Indexer returned no metrics');
+    const meta = payload.data?._meta?.[0];
+    if (!meta) throw new Error('Indexer returned no sync metadata');
     const fallback = demoData();
-    const age = Math.max(0, Math.floor(Date.now() / 1_000) - Number(metrics.lastIndexedAt));
+    const progressBlock = Number(meta.progressBlock ?? 0);
+    const sourceBlock = Number(meta.sourceBlock ?? progressBlock);
+    const blockLag = Math.max(0, sourceBlock - progressBlock);
+    const isLive = Boolean(meta.isReady) && blockLag <= 10;
+    const metricValue = (key) => Number(metrics?.[key] ?? 0);
+    const receiptResolution = ['Open', 'Linked', 'Resolved', 'Rejected'];
+    const validators = payload.data?.Validator ?? [];
+    const submitted = validators.reduce((total, validator) => total + Number(validator.submittedCount), 0);
+    const passing = validators.reduce((total, validator) => total + Number(validator.passingCount), 0);
     return json({
       ...fallback,
-      freshness: { status: age > 15 ? 'stale' : 'live', label: age > 15 ? `Stale · ${age}s old` : `Live · ${age}s ago`, block: Number(metrics.lastIndexedBlock) },
-      metrics: { ...fallback.metrics, receipts: Number(metrics.receiptCount), protectedEvents: Number(metrics.protectedEventCount), stableVersions: Number(metrics.stableVersionCount), validators: payload.data?.Validator?.length ?? fallback.metrics.validators },
+      freshness: { status: isLive ? 'live' : 'stale', label: isLive ? `Live · ${blockLag} blocks behind` : `Syncing · ${blockLag} blocks behind`, block: progressBlock },
+      metrics: { receipts: metricValue('receiptCount'), protectedEvents: metricValue('protectedEventCount'), stableVersions: metricValue('stableVersionCount'), validators: validators.length, p95LatencyMs: null, attackEffectiveness: null, utility: null, validatorAgreement: submitted ? Math.round(100 * passing / submitted) : null, adoption: null },
       versions: (payload.data?.DefenseVersion ?? []).map((version) => ({ id: version.id, name: 'Dadieng Defense Module', version: version.id, status: version.status, attestations: version.passingAttestations, threshold: version.validationThreshold, adoption: 0, updated: new Date(Number(version.updatedAt) * 1_000).toLocaleString('en', { dateStyle: 'medium', timeStyle: 'short' }) })),
-      validators: (payload.data?.Validator ?? []).map((validator, index) => ({ id: `agent ${validator.id} · ${validator.wallet.slice(0, 6)}…${validator.wallet.slice(-4)}`, label: `Independent validator ${String.fromCharCode(65 + index)}`, agreement: validator.submittedCount ? Math.round(100 * validator.passingCount / validator.submittedCount) : 0 })),
+      validators: validators.map((validator, index) => ({ id: `agent ${validator.id} · ${validator.wallet.slice(0, 6)}…${validator.wallet.slice(-4)}`, label: `Independent validator ${String.fromCharCode(65 + index)}`, agreement: validator.submittedCount ? Math.round(100 * validator.passingCount / validator.submittedCount) : 0 })),
+      receipts: (payload.data?.ThreatReceipt ?? []).map((receipt) => ({ id: receipt.id, attackClass: `On-chain class ${receipt.attackClass.slice(0, 10)}…`, surface: 'Monad threat receipt', severity: 'medium', resolution: receiptResolution[receipt.resolution] ?? 'Unknown', time: new Date(Number(receipt.updatedAt) * 1_000).toLocaleString('en', { dateStyle: 'medium', timeStyle: 'short' }) })),
+      integrations: fallback.integrations.map((integration) => integration.name === 'Envio' ? { ...integration, status: isLive ? 'connected' : 'degraded' } : integration),
+      rewards: { currentEpoch: payload.data?.UsageCommitment?.[0] ? Number(payload.data.UsageCommitment[0].epoch) : null, totalClaimed: `${metrics?.rewardClaimed ?? 0} wei` },
     });
   } catch {
     return json(demoData('offline'));

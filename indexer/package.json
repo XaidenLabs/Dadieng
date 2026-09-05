@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@10.32.0",
   "exports": { ".": { "types": "./dist/model.d.ts", "import": "./dist/model.js" } },
   "scripts": {
     "codegen": "envio codegen",
@@ -14,5 +15,10 @@
   },
   "dependencies": {
     "envio": "3.9.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "envio>react": "19.2.8"
+    }
   }
 }
