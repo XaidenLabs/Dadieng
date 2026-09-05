@@ -41,12 +41,12 @@ contracts:
 
 chains:
   - id: ${ENVIO_CHAIN_ID:-10143}
-    start_block: ${ENVIO_START_BLOCK:-0}
+    start_block: ${ENVIO_START_BLOCK:-59818741}
     rpc: ${ENVIO_MONAD_RPC_URL:-https://testnet-rpc.monad.xyz}
     contracts:
       - name: DadiengRegistry
-        address: "${ENVIO_DADIENG_REGISTRY_ADDRESS:-0x0000000000000000000000000000000000000001}"
+        address: "${ENVIO_DADIENG_REGISTRY_ADDRESS:-0x449a547105a5b006277fafd7ec1425c1c7428be5}"
       - name: DadiengValidation
-        address: "${ENVIO_DADIENG_VALIDATION_ADDRESS:-0x0000000000000000000000000000000000000002}"
+        address: "${ENVIO_DADIENG_VALIDATION_ADDRESS:-0x022b489deb764a438a57bb70d1363cb884c516bf}"
       - name: DadiengRewards
-        address: "${ENVIO_DADIENG_REWARDS_ADDRESS:-0x0000000000000000000000000000000000000003}"
+        address: "${ENVIO_DADIENG_REWARDS_ADDRESS:-0xb573d400a3476e05fcb5b518665f142605613305}"
