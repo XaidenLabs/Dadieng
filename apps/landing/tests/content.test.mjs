@@ -71,3 +71,21 @@ test('console uses Envio sync metadata and the exact Monad lifecycle mapping', a
   assert.match(worker, /UsageCommitment\(order_by/);
   assert.match(consolePage, /\['None', 'Draft', 'Candidate', 'Stable', 'Rejected', 'Quarantined', 'Revoked'\]/);
 });
+
+test('Vercel adapter serves the console API and keeps SPA routes addressable', async () => {
+  const [{ default: handler }, vercelConfig] = await Promise.all([
+    import(new URL('api/console.js', root)),
+    readFile(new URL('vercel.json', root), 'utf8').then(JSON.parse),
+  ]);
+  const headers = new Map();
+  let body = Buffer.alloc(0);
+  const response = {
+    statusCode: 0,
+    setHeader: (key, value) => headers.set(key, value),
+    end: (value) => { body = Buffer.from(value); },
+  };
+  await handler({ method: 'GET', url: '/api/console', headers: { host: 'localhost' } }, response);
+  assert.equal(response.statusCode, 200);
+  assert.equal(JSON.parse(body.toString()).freshness.status, 'demo');
+  assert.deepEqual(vercelConfig.rewrites.map(({ source }) => source), ['/docs', '/console']);
+});
