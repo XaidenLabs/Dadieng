@@ -52,7 +52,7 @@ pnpm api:start
 The demo is intentionally simulated: it proves that the vulnerable planner accepts an unsafe request, but it never reads or transmits a real secret.
 
 The operator console lives with the product and documentation at
-[dadieng.dadiengalfred.chatgpt.site/console](https://dadieng.dadiengalfred.chatgpt.site/console).
+[dadieng.vercel.app/console](https://dadieng.vercel.app/console).
 
 ## Product invariant
 
