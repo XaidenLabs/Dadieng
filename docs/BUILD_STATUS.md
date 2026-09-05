@@ -449,7 +449,7 @@ Status: **Complete locally; external testnet and sponsor evidence pending owner 
 - [x] Unified private product, documentation, and operator-console deployment
 - [x] Security policy and honest submission-evidence checklist
 - [x] Five Phase 18 site and protocol-story scenarios
-- [x] One hundred and forty-seven total automated tests passing across the workspace
+- [x] One hundred and forty-eight total automated tests passing across the workspace
 
 ### Phase 18 gate
 

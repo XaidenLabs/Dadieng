@@ -51,3 +51,12 @@ test('console API labels fallback data honestly and rejects writes', async () =>
   const rejected = await worker.fetch(new Request('https://dadieng.test/api/console', { method: 'POST' }), env);
   assert.equal(rejected.status, 405);
 });
+
+test('console uses a readable operational type scale', async () => {
+  const styles = await readFile(new URL('src/pages/console.css', root), 'utf8');
+  assert.match(styles, /Readable console type scale/);
+  assert.match(styles, /\.console-metrics p\{font-size:12px/);
+  assert.match(styles, /\.console-table-wrap td\{font-size:13px/);
+  assert.match(styles, /\.console-list strong,.validator-list strong\{font-size:14px/);
+  assert.match(styles, /\.setting-row strong\{font-size:14px/);
+});

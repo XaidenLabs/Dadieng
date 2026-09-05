@@ -17,3 +17,42 @@
 @media(max-width:1100px){.console-shell{grid-template-columns:76px 1fr}.console-rail{padding-inline:10px}.rail-label{font-size:0}.console-rail nav a{grid-template-columns:1fr;justify-items:center}.console-rail nav a span,.console-rail nav a small,.network-state div{display:none}.network-state{justify-content:center}.console-signal{grid-template-columns:1fr 1fr}.signal-health{grid-column:1/-1;border-left:0;border-top:1px solid var(--console-line);padding:18px 0 0}.console-integrations{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:800px){.console-head{align-items:flex-start;flex-direction:column}.console-signal{grid-template-columns:1fr}.signal-route{min-height:100px}.signal-health{grid-column:auto}.console-metrics{grid-template-columns:1fr 1fr}.console-metrics article:nth-child(2){border-right:0}.console-metrics article:nth-child(-n+2){border-bottom:1px solid var(--console-line)}.console-grid{grid-template-columns:1fr}.replay-stats{grid-template-columns:1fr 1fr}.rollback-panel{grid-template-columns:1fr}.console-integrations{grid-template-columns:1fr 1fr}}
 @media(max-width:600px){.console-shell{display:block;padding-top:70px}.console-rail{position:sticky;top:70px;z-index:20;width:100%;height:auto;padding:8px 14px;border-right:0;border-bottom:1px solid var(--console-line);display:block;overflow:auto}.console-rail nav{display:flex;width:max-content}.console-rail nav a{display:flex;padding:9px 10px}.console-rail nav a span{display:block;font-size:9px}.console-rail nav a small,.network-state,.rail-label{display:none}.console-workspace{padding:32px 14px 24px}.head-status{align-items:flex-start;flex-direction:column}.console-head h1{font-size:44px}.console-signal{padding:23px 18px}.signal-route{grid-template-columns:auto 1fr 43px 1fr auto}.route-core{width:38px;height:38px}.console-panel{padding:20px 16px}.console-panel-head{align-items:flex-start}.console-panel-head .verified-label{white-space:normal}.console-integrations{grid-template-columns:1fr}.rollback-panel{padding:24px 20px}.console-footer{display:grid;gap:5px}.bottom-grid{display:grid}}
+
+/* Readable console type scale: operational text never relies on micro type. */
+.console-page{font-size:16px}
+.console-shell{grid-template-columns:252px minmax(0,1fr)}
+.console-workspace{width:min(100%,1380px)}
+.rail-label,.console-kicker{font-size:12px;line-height:1.4}
+.console-rail nav a{font-size:14px;line-height:1.35;padding-block:13px;color:#a5a8a2}
+.console-rail nav a small{font-size:11px;color:#71756f}
+.network-state strong{font-size:13px}.network-state small{font-size:11px;color:#858983}
+.back-link{font-size:13px;color:#a1a49e}
+.data-badge,.verified-label{font-size:11px;line-height:1.3}
+.console-action{font-size:13px;padding:12px 16px}
+.console-notice strong{font-size:14px}.console-notice span{font-size:12px;line-height:1.5;color:#af9063}
+.signal-copy>span{font-size:14px;line-height:1.6;color:#a0a39d}
+.signal-route div small,.signal-health>span,.signal-health small{font-size:11px;color:#858983}
+.console-metrics p{font-size:12px;line-height:1.4;color:#8f928c}
+.console-metrics small{font-size:12px;line-height:1.45;color:#81857f}
+.console-panel-head h2{font-size:28px}
+.console-panel-head>a,.console-panel-head>small{font-size:12px;line-height:1.45;color:#949791}
+.console-table-wrap th{font-size:11px;color:#858983}
+.console-table-wrap td{font-size:13px;line-height:1.45;color:#b8bab5}
+.console-table-wrap td strong{font-size:14px}.console-table-wrap td small{font-size:11px;color:#7f837d}
+.version-status{font-size:11px}
+.panel-count{font-size:12px}
+.console-list strong,.validator-list strong{font-size:14px}
+.console-list small,.validator-list small{font-size:12px;line-height:1.45;color:#858983}
+.console-list article>span{font-size:11px}
+.validator-mark{font-size:12px}
+.validator-list article>b small{font-size:10px}
+.replay-stats span{font-size:11px;line-height:1.45;color:#858983}.replay-stats b{font-size:18px}
+.console-integrations strong{font-size:13px}.console-integrations small{font-size:11px;line-height:1.45;color:#858983}
+.console-integrations article>span{font-size:11px}.console-integrations article>i{font-size:10px}
+.rollback-panel p:last-child{font-size:13px;line-height:1.6;color:#9a918c}
+.rollback-panel strong small{font-size:10px}.rollback-panel>a{font-size:12px}
+.panel-copy{font-size:14px;color:#a0a39d}.detail-row span{font-size:11px;color:#8d918b}.detail-row b{font-size:15px}
+.setting-row strong{font-size:14px}.setting-row small{font-size:12px;line-height:1.45;color:#858983}
+.console-footer{font-size:11px;color:#777b75}
+@media(max-width:1100px){.console-shell{grid-template-columns:88px minmax(0,1fr)}}
+@media(max-width:600px){.console-shell{display:block}.console-rail nav a span{font-size:12px}}
