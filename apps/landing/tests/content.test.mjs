@@ -56,6 +56,11 @@ test('console API labels fallback data honestly and rejects writes', async () =>
 
   const rejected = await worker.fetch(new Request('https://dadieng.test/api/console', { method: 'POST' }), env);
   assert.equal(rejected.status, 405);
+
+  const integrations = await worker.fetch(new Request('https://dadieng.test/api/integrations'), env);
+  const readiness = await integrations.json();
+  assert.deepEqual(readiness.configured, { github: false, slack: false, notion: false });
+  assert.equal(readiness.mode, 'preview-safe');
 });
 
 test('console uses a readable operational type scale', async () => {

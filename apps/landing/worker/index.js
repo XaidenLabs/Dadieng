@@ -1,6 +1,15 @@
 export default {
   async fetch(request, env) {
     const requestUrl = new URL(request.url);
+    if (requestUrl.pathname === '/api/integrations') {
+      if (request.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
+      const configured = {
+        github: ['GITHUB_TOKEN', 'GITHUB_OWNER', 'GITHUB_REPO'].every((name) => Boolean(env[name])),
+        slack: ['SLACK_BOT_TOKEN', 'SLACK_CHANNEL_ID'].every((name) => Boolean(env[name])),
+        notion: ['NOTION_TOKEN', 'NOTION_DATA_SOURCE_ID'].every((name) => Boolean(env[name])),
+      };
+      return json({ mode: Object.values(configured).every(Boolean) ? 'live-ready' : 'preview-safe', configured });
+    }
     if (requestUrl.pathname === '/api/console') {
       if (request.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
       return loadConsoleData(env);
