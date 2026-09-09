@@ -20,6 +20,8 @@ pnpm install
 pnpm test
 pnpm demo
 pnpm replay:demo
+pnpm demo:multi-app
+pnpm sdk:e2e
 export DADIENG_API_KEY="replace-with-a-long-random-key"
 export DATABASE_URL="postgresql://dadieng:replace-me@127.0.0.1:5432/dadieng"
 export DADIENG_OBJECT_ROOT="./.dadieng/objects"
@@ -41,9 +43,12 @@ pnpm api:start
 - `contracts`: immutable Monad registry, independent validation, usage commitment, and reward contracts.
 - `indexer`: Envio HyperIndex configuration, GraphQL security graph, lifecycle handlers, and freshness model.
 - `packages/sponsor-integrations`: Chainlink CRE, Dynamic signing, Mera PRF evidence, and Qwen red-team boundaries.
+- `packages/multi-app-agent`: resumable GitHub, Slack, and Notion incident-response coordinator.
 - `packages/adapters`: drop-in TypeScript MCP and Vercel AI SDK protection.
 - `examples/cre-validation-workflow`: deployable Chainlink CRE scheduling and consensus callback workflow.
 - `examples/full-protocol-demo`: credential-free eight-stage proof with 100 deterministic replay executions.
+- `examples/multi-app-agent`: credential-free three-app workflow with injected-failure and idempotent-resume proof.
+- `examples/sdk-e2e-lab`: runnable mini project that injects SDK and downstream-app failures and verifies their fixes.
 - `apps/landing`: unified Dadieng product site, SDK documentation, and Envio-backed operator console.
 - `examples/mcp-security-demo`: vulnerable and protected executions of the same tool result.
 - `defenses/mcp-boundary`: committed reference bundle with artifact, manifest, suite, and SBOM.

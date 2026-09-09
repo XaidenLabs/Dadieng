@@ -15,6 +15,7 @@ export default function Navbar() {
     { label: 'Integrations', href: '/#integrations', route: false },
     { label: 'Docs', href: '/docs', route: true },
     { label: 'Console', href: '/console', route: true },
+    { label: 'Commander', href: '/commander', route: true },
   ];
   return (
     <header className={`navbar ${scrolled ? 'scrolled' : ''}`}>
@@ -24,7 +25,7 @@ export default function Navbar() {
           {links.map((link) => link.route
             ? <Link key={link.label} to={link.href} onClick={() => setOpen(false)}>{link.label}</Link>
             : <a key={link.label} href={link.href} onClick={() => setOpen(false)}>{link.label}</a>)}
-          <Link to="/console" onClick={() => setOpen(false)} className="nav-console">Open console →</Link>
+          <Link to="/commander" onClick={() => setOpen(false)} className="nav-console">Run proof →</Link>
         </nav>
         <button className="menu" onClick={() => setOpen(!open)} aria-label={open ? 'Close menu' : 'Open menu'}>{open ? <X /> : <Menu />}</button>
       </div>

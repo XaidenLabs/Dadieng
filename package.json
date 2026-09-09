@@ -10,6 +10,8 @@
     "replay:demo": "pnpm --filter @dadieng/replay-engine demo",
     "replay:report": "pnpm --filter @dadieng/replay-engine report:mcp",
     "demo:final": "pnpm --filter @dadieng/full-protocol-demo demo",
+    "demo:multi-app": "pnpm --filter @dadieng/multi-app-agent-demo demo",
+    "sdk:e2e": "pnpm --filter @dadieng/sdk-e2e-lab lab",
     "demo:reset": "node scripts/reset-demo.mjs",
     "release:check": "pnpm test && pnpm typecheck && pnpm --filter @dadieng/landing test && pnpm --filter @dadieng/console-redirect test && pnpm --filter @dadieng/sdk exec npm pack --dry-run --json && pnpm --filter @dadieng/adapters exec npm pack --dry-run --json && pnpm security:audit",
     "security:audit": "pnpm audit --prod --audit-level high",

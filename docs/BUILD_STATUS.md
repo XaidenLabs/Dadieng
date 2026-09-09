@@ -459,3 +459,32 @@ out of output, and prove a second agent blocks the attack without blocking its
 control. Full release checks, both production web builds, and npm tarball dry
 runs must pass. External sponsor and Monad evidence remains pending until real
 accounts, addresses, and testnet credentials are supplied.
+
+## Phase 19 — multi-app incident commander
+
+Status: **Complete locally; live GitHub, Slack, and Notion credentials pending**
+
+- [x] Ordered GitHub → Slack → Notion incident-response workflow
+- [x] Stable workflow and per-app idempotency identities
+- [x] GitHub issue-marker, Slack client-message, and Notion receipt deduplication
+- [x] Retry classification with bounded exponential backoff
+- [x] Atomic, owner-only durable workflow checkpoints
+- [x] Concurrent-delivery serialization and duplicate-free resume
+- [x] Fail-closed privacy validation before every external action
+- [x] Current Notion data-source API and 2026-03-11 version contract
+- [x] Interactive `/commander` evaluation route and credential-readiness endpoint
+- [x] Desktop and mobile browser verification with no console errors or overflow
+- [x] Executable SDK end-to-end failure lab
+- [x] Transient outage, permanent rejection, repair, restart, concurrency, and privacy scenarios
+- [x] One hundred and thirty-seven application tests, fourteen Solidity tests, and eight landing tests passing
+- [x] Production dependency audit with no high or critical findings
+
+### Phase 19 gate
+
+`pnpm sdk:e2e` must exit successfully and show that a poisoned MCP result is
+blocked, a transient Slack failure retries, a permanent Notion failure stops
+the workflow, and the repaired workflow resumes without replaying completed
+actions. The production site must build, `/commander` must complete the
+interactive proof at desktop and mobile widths, and no credential value may be
+returned by the readiness endpoint. Live external-app evidence remains pending
+until dedicated test resources and credentials are configured.

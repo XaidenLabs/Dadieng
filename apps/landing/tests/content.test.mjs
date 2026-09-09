@@ -6,7 +6,7 @@ const root = new URL('../', import.meta.url);
 
 test('ships Dadieng product and SDK content without legacy product claims', async () => {
   const files = await Promise.all([
-    'src/pages/Home.tsx', 'src/pages/Docs.tsx', 'src/pages/Console.tsx', 'src/components/Navbar.tsx',
+    'src/pages/Home.tsx', 'src/pages/Docs.tsx', 'src/pages/Console.tsx', 'src/pages/Commander.tsx', 'src/components/Navbar.tsx',
     'src/components/Footer.tsx', 'index.html',
   ].map((path) => readFile(new URL(path, root), 'utf8')));
   const content = files.join('\n');
@@ -21,7 +21,7 @@ test('ships Dadieng product and SDK content without legacy product claims', asyn
 
 test('keeps the operator console on the main Dadieng site', async () => {
   const files = await Promise.all([
-    'src/App.tsx', 'src/pages/Console.tsx', 'src/components/Navbar.tsx',
+    'src/App.tsx', 'src/pages/Console.tsx', 'src/pages/Commander.tsx', 'src/components/Navbar.tsx',
     'src/components/Footer.tsx', 'worker/index.js',
   ].map((path) => readFile(new URL(path, root), 'utf8')));
   const content = files.join('\n');
@@ -29,6 +29,11 @@ test('keeps the operator console on the main Dadieng site', async () => {
   assert.match(content, /Defense graph/);
   assert.match(content, /Threat receipts/);
   assert.match(content, /Replay lab/);
+  assert.match(content, /GitHub/);
+  assert.match(content, /Slack/);
+  assert.match(content, /Notion/);
+  assert.match(content, /Run multi-app proof/);
+  assert.match(content, /Preview-safe mode/);
   assert.match(content, /\/api\/console/);
   assert.doesNotMatch(content, /dadieng-console\.dadiengalfred\.chatgpt\.site/);
 });
@@ -88,5 +93,28 @@ test('Vercel adapter serves the console API and keeps SPA routes addressable', a
   await handler({ method: 'GET', url: '/api/console', headers: { host: 'localhost' } }, response);
   assert.equal(response.statusCode, 200);
   assert.equal(JSON.parse(body.toString()).freshness.status, 'demo');
-  assert.deepEqual(vercelConfig.rewrites.map(({ source }) => source), ['/docs', '/console']);
+  assert.deepEqual(vercelConfig.rewrites.map(({ source }) => source), ['/docs', '/console', '/commander']);
+});
+
+test('integration readiness endpoint exposes booleans but never credential values', async () => {
+  const { default: handler } = await import(new URL('api/integrations.js', root));
+  const previous = process.env.GITHUB_TOKEN;
+  process.env.GITHUB_TOKEN = 'must-not-leak';
+  let payload;
+  const response = {
+    headers: new Map(),
+    setHeader(key, value) { this.headers.set(key, value); },
+    statusCode: 0,
+    status(code) { this.statusCode = code; return this; },
+    json(value) { payload = value; },
+  };
+  try {
+    handler({ method: 'GET' }, response);
+    assert.equal(response.statusCode, 200);
+    assert.equal(typeof payload.configured.github, 'boolean');
+    assert.doesNotMatch(JSON.stringify(payload), /must-not-leak/);
+  } finally {
+    if (previous === undefined) delete process.env.GITHUB_TOKEN;
+    else process.env.GITHUB_TOKEN = previous;
+  }
 });

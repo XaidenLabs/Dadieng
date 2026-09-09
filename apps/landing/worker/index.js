@@ -41,6 +41,9 @@ const demoData = (status = 'demo') => ({
     { name: 'Qwen', short: 'QW', role: 'Red-team planning', status: 'ready' },
     { name: 'Dynamic', short: 'DY', role: 'Participant signing', status: 'ready' },
     { name: 'Mera', short: 'ME', role: 'Evidence key derivation', status: 'ready' },
+    { name: 'GitHub', short: 'GH', role: 'Remediation issue creation', status: 'ready' },
+    { name: 'Slack', short: 'SL', role: 'Responder alerting', status: 'ready' },
+    { name: 'Notion', short: 'NO', role: 'Incident knowledge base', status: 'ready' },
   ],
   rewards: { currentEpoch: null, totalClaimed: '0 wei' },
 });

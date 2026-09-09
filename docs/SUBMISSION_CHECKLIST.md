@@ -16,6 +16,17 @@
 - [ ] Three-minute demo recording and screenshots
 - [ ] Reset, degraded-service, and emergency runbooks rehearsed
 
+## Multi-App AI Agent Hackathon
+
+- [x] GitHub → Slack → Notion ordered workflow implemented
+- [x] Credential-free three-app demo with an injected transient failure
+- [x] Automated ordering, retry, privacy, request-shape, and no-duplicate-resume evaluation
+- [x] Short system, reliability, and two-minute demo brief
+- [ ] Dedicated GitHub repository and fine-grained token configured
+- [ ] Dedicated Slack bot and test channel configured
+- [ ] Dedicated Notion integration and incident database configured
+- [ ] Live three-app workflow recording captured
+
 Unchecked external evidence must be described as pending. Local mocks,
 simulations, placeholder addresses, and private preview URLs must never be
 presented as sponsor deployment proof.

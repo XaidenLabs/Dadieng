@@ -245,6 +245,24 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sdk
 
+  examples/multi-app-agent:
+    dependencies:
+      '@dadieng/multi-app-agent':
+        specifier: workspace:*
+        version: link:../../packages/multi-app-agent
+      '@dadieng/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+
+  examples/sdk-e2e-lab:
+    dependencies:
+      '@dadieng/multi-app-agent':
+        specifier: workspace:*
+        version: link:../../packages/multi-app-agent
+      '@dadieng/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+
   indexer:
     dependencies:
       envio:
@@ -278,6 +296,8 @@ importers:
       tsx:
         specifier: ^4.20.5
         version: 4.23.13
+
+  packages/multi-app-agent: {}
 
   packages/policy-engine:
     dependencies:

@@ -5,6 +5,7 @@
   "outputDirectory": "dist/client",
   "rewrites": [
     { "source": "/docs", "destination": "/index.html" },
-    { "source": "/console", "destination": "/index.html" }
+    { "source": "/console", "destination": "/index.html" },
+    { "source": "/commander", "destination": "/index.html" }
   ]
 }

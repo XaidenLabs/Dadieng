@@ -15,6 +15,7 @@ export default defineConfig({
       "@dadieng/receipt-sanitizer": fileURLToPath(new URL("./packages/receipt-sanitizer/src/index.ts", import.meta.url)),
       "@dadieng/sdk": fileURLToPath(new URL("./packages/sdk/src/index.ts", import.meta.url)),
       "@dadieng/sponsor-integrations": fileURLToPath(new URL("./packages/sponsor-integrations/src/index.ts", import.meta.url)),
+      "@dadieng/multi-app-agent": fileURLToPath(new URL("./packages/multi-app-agent/src/index.ts", import.meta.url)),
       "@dadieng/adapters": fileURLToPath(new URL("./packages/adapters/src/index.ts", import.meta.url)),
       "@dadieng/indexer": fileURLToPath(new URL("./indexer/src/model.ts", import.meta.url)),
     },
