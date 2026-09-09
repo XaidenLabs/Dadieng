@@ -43,6 +43,10 @@ test('build contains a Cloudflare worker and both branded assets', async () => {
     'dist/server/index.js', 'dist/client/index.html', 'dist/client/dadieng-logo.png',
     'dist/client/dadieng-banner.png',
   ].map((path) => readFile(new URL(path, root))));
+  const wrangler = JSON.parse((await readFile(new URL('wrangler.jsonc', root), 'utf8')).replace(/^\s*\/\/.*$/gm, ''));
+  assert.equal(wrangler.assets.binding, 'ASSETS');
+  assert.equal(wrangler.assets.not_found_handling, 'single-page-application');
+  assert.deepEqual(wrangler.assets.run_worker_first, ['/api/*']);
 });
 
 test('console API labels fallback data honestly and rejects writes', async () => {
