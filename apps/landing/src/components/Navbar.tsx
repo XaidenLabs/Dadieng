@@ -13,8 +13,7 @@ export default function Navbar() {
   const links = [
     { label: 'Protocol', href: '/#protocol', route: false },
     { label: 'Integrations', href: '/#integrations', route: false },
-    { label: 'Docs', href: '/docs', route: true },
-    { label: 'Console', href: '/console', route: true },
+    { label: 'Documentation', href: '/docs', route: true },
     { label: 'Commander', href: '/commander', route: true },
   ];
   return (

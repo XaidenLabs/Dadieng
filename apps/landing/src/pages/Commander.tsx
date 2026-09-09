@@ -107,7 +107,7 @@ export default function Commander() {
         <section className="existing-loop">
           <div><p className="commander-kicker">Existing protocol loop</p><h2>Backed by the full Dadieng stack.</h2></div>
           <div className="loop-row">{['Envio', 'Chainlink CRE', 'Qwen', 'Dynamic', 'Mera'].map((name) => <span key={name}>{name}<Check /></span>)}</div>
-          <a href="/console#integrations-console">Inspect all integrations <ArrowRight /></a>
+          <a href="/docs#operations">Inspect all integrations <ArrowRight /></a>
         </section>
       </main>
     </div>

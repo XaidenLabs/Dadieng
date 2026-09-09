@@ -6,7 +6,7 @@ const root = new URL('../', import.meta.url);
 
 test('ships Dadieng product and SDK content without legacy product claims', async () => {
   const files = await Promise.all([
-    'src/pages/Home.tsx', 'src/pages/Docs.tsx', 'src/pages/Console.tsx', 'src/pages/Commander.tsx', 'src/components/Navbar.tsx',
+    'src/pages/Home.tsx', 'src/pages/Docs.tsx', 'src/components/DocsOperations.tsx', 'src/pages/Commander.tsx', 'src/components/Navbar.tsx',
     'src/components/Footer.tsx', 'index.html',
   ].map((path) => readFile(new URL(path, root), 'utf8')));
   const content = files.join('\n');
@@ -19,13 +19,14 @@ test('ships Dadieng product and SDK content without legacy product claims', asyn
   await assert.rejects(access(new URL('public/.well-known/ory-verify.txt', root)));
 });
 
-test('keeps the operator console on the main Dadieng site', async () => {
+test('dissolves operations into the documentation experience', async () => {
   const files = await Promise.all([
-    'src/App.tsx', 'src/pages/Console.tsx', 'src/pages/Commander.tsx', 'src/components/Navbar.tsx',
+    'src/App.tsx', 'src/pages/Docs.tsx', 'src/components/DocsOperations.tsx', 'src/pages/Commander.tsx', 'src/components/Navbar.tsx',
     'src/components/Footer.tsx', 'worker/index.js',
   ].map((path) => readFile(new URL(path, root), 'utf8')));
   const content = files.join('\n');
   assert.match(content, /path="\/console"/);
+  assert.match(content, /Navigate to="\/docs#operations"/);
   assert.match(content, /Defense graph/);
   assert.match(content, /Threat receipts/);
   assert.match(content, /Replay lab/);
@@ -35,6 +36,7 @@ test('keeps the operator console on the main Dadieng site', async () => {
   assert.match(content, /Run multi-app proof/);
   assert.match(content, /Preview-safe mode/);
   assert.match(content, /\/api\/console/);
+  assert.doesNotMatch(content, /label: 'Console'/);
   assert.doesNotMatch(content, /dadieng-console\.dadiengalfred\.chatgpt\.site/);
 });
 
@@ -67,24 +69,23 @@ test('console API labels fallback data honestly and rejects writes', async () =>
   assert.equal(readiness.mode, 'preview-safe');
 });
 
-test('console uses a readable operational type scale', async () => {
-  const styles = await readFile(new URL('src/pages/console.css', root), 'utf8');
-  assert.match(styles, /Readable console type scale/);
-  assert.match(styles, /\.console-metrics p\{font-size:12px/);
-  assert.match(styles, /\.console-table-wrap td\{font-size:13px/);
-  assert.match(styles, /\.console-list strong,.validator-list strong\{font-size:14px/);
-  assert.match(styles, /\.setting-row strong\{font-size:14px/);
+test('docs use a readable, responsive operational type scale', async () => {
+  const styles = await readFile(new URL('src/pages/docs.css', root), 'utf8');
+  assert.match(styles, /\.docs-hero>p\{[^}]*font-size:17px/);
+  assert.match(styles, /\.docs-section>p[^}]*font-size:14px/);
+  assert.match(styles, /\.ops-card-head h3\{font-size:20px/);
+  assert.match(styles, /@media\(max-width:760px\)/);
 });
 
 test('console uses Envio sync metadata and the exact Monad lifecycle mapping', async () => {
-  const [worker, consolePage] = await Promise.all([
+  const [worker, operations] = await Promise.all([
     readFile(new URL('worker/index.js', root), 'utf8'),
-    readFile(new URL('src/pages/Console.tsx', root), 'utf8'),
+    readFile(new URL('src/components/DocsOperations.tsx', root), 'utf8'),
   ]);
   assert.match(worker, /_meta \{ chainId progressBlock sourceBlock eventsProcessed isReady \}/);
   assert.match(worker, /ThreatReceipt\(order_by/);
   assert.match(worker, /UsageCommitment\(order_by/);
-  assert.match(consolePage, /\['None', 'Draft', 'Candidate', 'Stable', 'Rejected', 'Quarantined', 'Revoked'\]/);
+  assert.match(operations, /\['None', 'Draft', 'Candidate', 'Stable', 'Rejected', 'Quarantined', 'Revoked'\]/);
 });
 
 test('Vercel adapter serves the console API and keeps SPA routes addressable', async () => {
@@ -126,4 +127,15 @@ test('integration readiness endpoint exposes booleans but never credential value
     if (previous === undefined) delete process.env.GITHUB_TOKEN;
     else process.env.GITHUB_TOKEN = previous;
   }
+});
+
+test('landing page wires protocol state and participant app readiness', async () => {
+  const source = await readFile(new URL('src/components/HomeIntegrations.tsx', root), 'utf8');
+  assert.match(source, /fetch\('\/api\/console'/);
+  assert.match(source, /fetch\('\/api\/integrations'/);
+  assert.match(source, /GitHub/);
+  assert.match(source, /Slack/);
+  assert.match(source, /Notion/);
+  assert.match(source, /Connect account/);
+  assert.match(source, /Credentials are never exposed/);
 });

@@ -1,8 +1,9 @@
 import { motion } from 'framer-motion';
-import { ArrowRight, Braces, Check, Fingerprint, GitBranch, Orbit, Radio, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Check, Fingerprint, GitBranch, Orbit, Radio, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Footer from '../components/Footer';
 import Navbar from '../components/Navbar';
+import HomeIntegrations from '../components/HomeIntegrations';
 
 const stages = [
   ['01', 'Detect', 'A local SDK intercepts model and tool boundaries before an unsafe action executes.'],
@@ -10,15 +11,6 @@ const stages = [
   ['03', 'Reproduce', 'Qwen proposes synthetic variants; deterministic replay tests attacks and legitimate controls.'],
   ['04', 'Validate', 'Independent validators reproduce the report while Chainlink CRE coordinates the workflow.'],
   ['05', 'Distribute', 'Monad finalizes lifecycle state; signed manifests update every connected agent.'],
-];
-
-const integrations = [
-  ['MONAD', 'Canonical defense, validation, receipt, and reward state'],
-  ['CHAINLINK CRE', 'Decentralized validation workflow coordination'],
-  ['QWEN', 'Bounded autonomous red-team variant generation'],
-  ['MERA', 'Passkey PRF-derived keys for encrypted private evidence'],
-  ['ENVIO', 'Live defense graph, validator, adoption, and reward read model'],
-  ['DYNAMIC', 'Participant wallets and intent-bound protocol signing'],
 ];
 
 export default function Home() {
@@ -50,11 +42,11 @@ export default function Home() {
 
         <section className="section contrast"><div className="container split"><div><div className="section-kicker red">Portable defenses</div><h2>Security that lives<br />outside the agent.</h2><p>Dadieng separates detection, evidence, replay, validation, and distribution into verifiable layers. Agents can change models or frameworks without losing the protection they already earned.</p><ul><li><Fingerprint /> Content-addressed defense bundles and evidence</li><li><GitBranch /> Signed stable manifests with rollback lineage</li><li><Radio /> Offline last-known-good protection</li></ul></div><div className="defense-card"><div className="card-top"><Orbit /><span>dadieng.mcp-boundary</span><b>STABLE</b></div><div className="version">v0.2.0</div><div className="card-metrics"><span><b>100%</b> attack effectiveness</span><span><b>100%</b> control utility</span><span><b>2/2</b> validator quorum</span></div><div className="manifest-line"><i style={{ width: '84%' }} /><small>84% verified adoption</small></div></div></div></section>
 
-        <section id="integrations" className="section integrations"><div className="container"><div className="section-kicker">Built as a protocol</div><div className="section-head"><h2>Specialists at every trust boundary.</h2><p>Each integration does one narrow job. Dadieng keeps deterministic code and independent state in charge.</p></div><div className="integration-grid">{integrations.map(([name, copy]) => <article key={name}><div className="integration-icon"><Braces /></div><h3>{name}</h3><p>{copy}</p></article>)}</div></div></section>
+        <HomeIntegrations />
 
         <section className="section developer"><div className="container developer-inner"><div><div className="section-kicker red">For developers</div><h2>Two wrappers.<br />One protected call.</h2><p>Start with the SDK, then add the adapter for your framework. Dadieng evaluates locally and emits sanitized incidents through listeners you control.</p><Link to="/docs" className="text-link">Read the integration guide <ArrowRight /></Link></div><div className="install-card"><div><span>core SDK · v0.1.0</span><code>npm install @dadieng/sdk</code></div><div><span>framework adapters · v0.1.0</span><code>npm install @dadieng/adapters</code></div><small>Published by the official Dadieng organization on npm.</small></div></div></section>
 
-        <section className="cta"><div className="container"><div className="cta-mark">D</div><h2>Agents should inherit immunity,<br />not repeat incidents.</h2><p>Build with the shared defense layer.</p><div className="hero-actions"><Link className="button primary" to="/docs">Start integrating <ArrowRight size={17} /></Link><Link className="button secondary" to="/console">Open operator console</Link></div></div></section>
+        <section className="cta"><div className="container"><div className="cta-mark">D</div><h2>Agents should inherit immunity,<br />not repeat incidents.</h2><p>Build with the shared defense layer.</p><div className="hero-actions"><Link className="button primary" to="/docs">Start integrating <ArrowRight size={17} /></Link><Link className="button secondary" to="/docs#operations">View operations &amp; docs</Link></div></div></section>
       </main>
       <Footer />
     </div>
